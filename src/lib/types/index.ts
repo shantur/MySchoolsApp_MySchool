@@ -85,4 +85,5 @@ export interface UserSession {
   schoolId: string;
   role: 'user' | 'admin';
   displayName?: string;
+  groupIds?: string[];
 }

@@ -17,6 +17,9 @@
     "source": ".",
     "runtime": "nodejs18"
   },
+  "firestore": {
+    "indexes": "firestore.indexes.json"
+  },
   "emulators": {
     "auth": {
       "port": 9099
