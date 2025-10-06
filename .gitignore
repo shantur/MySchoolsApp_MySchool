@@ -65,3 +65,7 @@ ui-debug.log
 # OS
 .DS_Store
 Thumbs.db
+
+# Evidence and temporary files
+evidences/
+dev-server.log

@@ -122,3 +122,11 @@ export async function listNoticesHandler(
 
   return service.listNoticesBySchool(schoolId, filterStatus);
 }
+
+// Convenience exports with alternative naming for UI components
+export const getNoticesBySchool = listNoticesHandler;
+export const getNoticeById = (
+  schoolId: string,
+  noticeId: string,
+  session: UserSession | null
+) => getNoticeHandler(session, noticeId, schoolId);

@@ -123,3 +123,26 @@ export function getCookieConfig(domain?: string) {
     domain: domain || 'localhost',
   };
 }
+
+/**
+ * Get user session from cookies (for Next.js server components)
+ * 
+ * @return {Promise<UserSession | null>} User session or null if not found
+ */
+export async function getUserSession(): Promise<UserSession | null> {
+  // In Next.js App Router, we need to use cookies() from next/headers
+  const { cookies } = await import('next/headers');
+  
+  try {
+    const cookieStore = cookies();
+    const sessionCookie = cookieStore.get(SESSION_CONFIG.cookieName);
+    
+    if (!sessionCookie) {
+      return null;
+    }
+    
+    return validateSession(sessionCookie.value);
+  } catch {
+    return null;
+  }
+}
