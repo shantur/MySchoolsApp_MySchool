@@ -9,6 +9,8 @@ import { getUserSession } from '@/lib/auth/session';
 import { getAllGroups } from '@/lib/handlers/groups-handler';
 import { getAllSchools } from '@/lib/handlers/schools-handler';
 import Link from 'next/link';
+import GroupActions from '@/components/admin/GroupActions';
+import ErrorBoundary from '@/components/ui/ErrorBoundary';
 
 export const dynamic = 'force-dynamic';
 
@@ -101,110 +103,104 @@ export default async function AdminGroupsPage() {
             </div>
           </div>
 
-          {groups.length === 0 ? (
-            <div className="bg-white p-8 rounded-lg shadow text-center">
-              <p className="text-gray-600 text-lg">
-                No groups found. Create your first group.
-              </p>
-            </div>
-          ) : (
-            <div className="bg-white rounded-lg shadow overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th
-                        scope="col"
-                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                      >
-                        Group ID
-                      </th>
-                      <th
-                        scope="col"
-                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                      >
-                        Group Name
-                      </th>
-                      <th
-                        scope="col"
-                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                      >
-                        School
-                      </th>
-                      <th
-                        scope="col"
-                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                      >
-                        Description
-                      </th>
-                      <th
-                        scope="col"
-                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                      >
-                        Actions
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {groups.map((group) => (
-                      <tr
-                        key={group.groupId}
-                        className="hover:bg-gray-50"
-                        data-group-id={group.groupId}
-                        data-group-name={group.name}
-                        data-group-school-id={group.schoolId}
-                        data-group-description={group.description}
-                      >
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm font-medium text-gray-900">
-                            {group.groupId}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm font-medium text-gray-900">
-                            {group.name}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-900">
-                            {schoolMap.get(group.schoolId) || group.schoolId}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="text-sm text-gray-900 max-w-xs truncate">
-                            {group.description || 'No description'}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                          <div className="flex gap-2">
-                            <Link
-                              href={`/admin/groups/${group.groupId}/edit`}
-                              className="text-blue-600 hover:text-blue-900"
-                              data-group-action="edit"
-                            >
-                              Edit
-                            </Link>
-                            <button
-                              className="text-red-600 hover:text-red-900"
-                              data-group-action="delete"
-                              onClick={() => {
-                                if (confirm(`Are you sure you want to delete ${group.name}?`)) {
-                                  // TODO: Implement delete functionality
-                                  console.log('Delete group:', group.groupId);
-                                }
-                              }}
-                            >
-                              Delete
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+          <ErrorBoundary>
+            {groups.length === 0 ? (
+              <div className="bg-white p-8 rounded-lg shadow text-center">
+                <p className="text-gray-600 text-lg">
+                  No groups found. Create your first group.
+                </p>
               </div>
-            </div>
-          )}
+            ) : (
+              <div className="bg-white rounded-lg shadow overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th
+                          scope="col"
+                          className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                        >
+                          Group ID
+                        </th>
+                        <th
+                          scope="col"
+                          className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                        >
+                          Group Name
+                        </th>
+                        <th
+                          scope="col"
+                          className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                        >
+                          School
+                        </th>
+                        <th
+                          scope="col"
+                          className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                        >
+                          Description
+                        </th>
+                        <th
+                          scope="col"
+                          className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                        >
+                          Actions
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {groups.map((group) => (
+                        <tr
+                          key={group.groupId}
+                          className="hover:bg-gray-50"
+                          data-group-id={group.groupId}
+                          data-group-name={group.name}
+                          data-group-school-id={group.schoolId}
+                          data-group-description={group.description}
+                        >
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm font-medium text-gray-900">
+                              {group.groupId}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm font-medium text-gray-900">
+                              {group.name}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm text-gray-900">
+                              {schoolMap.get(group.schoolId) || group.schoolId}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="text-sm text-gray-900 max-w-xs truncate">
+                              {group.description || 'No description'}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                            <div className="flex gap-2">
+                              <Link
+                                href={`/admin/groups/${group.groupId}/edit`}
+                                className="text-blue-600 hover:text-blue-900"
+                                data-group-action="edit"
+                              >
+                                Edit
+                              </Link>
+                              <GroupActions
+                                groupId={group.groupId}
+                                groupName={group.name}
+                              />
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </ErrorBoundary>
         </main>
       </div>
     </>

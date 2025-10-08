@@ -8,6 +8,8 @@
 import { getUserSession } from '@/lib/auth/session';
 import { getAllSchools } from '@/lib/handlers/schools-handler';
 import Link from 'next/link';
+import SchoolActions from '@/components/admin/SchoolActions';
+import ErrorBoundary from '@/components/ui/ErrorBoundary';
 
 export const dynamic = 'force-dynamic';
 
@@ -94,122 +96,116 @@ export default async function AdminSchoolsPage() {
             </div>
           </div>
 
-          {schools.length === 0 ? (
-            <div className="bg-white p-8 rounded-lg shadow text-center">
-              <p className="text-gray-600 text-lg">
-                No schools found. Create your first school profile.
-              </p>
-            </div>
-          ) : (
-            <div className="bg-white rounded-lg shadow overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th
-                        scope="col"
-                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                      >
-                        School ID
-                      </th>
-                      <th
-                        scope="col"
-                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                      >
-                        School Name
-                      </th>
-                      <th
-                        scope="col"
-                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                      >
-                        Address
-                      </th>
-                      <th
-                        scope="col"
-                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                      >
-                        Contact Email
-                      </th>
-                      <th
-                        scope="col"
-                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                      >
-                        Phone
-                      </th>
-                      <th
-                        scope="col"
-                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                      >
-                        Actions
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {schools.map((school) => (
-                      <tr
-                        key={school.schoolId}
-                        className="hover:bg-gray-50"
-                        data-school-id={school.schoolId}
-                        data-school-name={school.name}
-                        data-school-address={school.address}
-                        data-school-contact-email={school.contactEmail}
-                        data-school-phone={school.phone}
-                      >
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm font-medium text-gray-900">
-                            {school.schoolId}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm font-medium text-gray-900">
-                            {school.name}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="text-sm text-gray-900 max-w-xs truncate">
-                            {school.address}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-900">
-                            {school.contactEmail}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-900">
-                            {school.phone || 'N/A'}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                          <div className="flex gap-2">
-                            <Link
-                              href={`/admin/schools/${school.schoolId}/edit`}
-                              className="text-blue-600 hover:text-blue-900"
-                              data-school-action="edit"
-                            >
-                              Edit
-                            </Link>
-                            <button
-                              className="text-red-600 hover:text-red-900"
-                              data-school-action="delete"
-                              onClick={() => {
-                                if (confirm(`Are you sure you want to delete ${school.name}?`)) {
-                                  // TODO: Implement delete functionality
-                                  console.log('Delete school:', school.schoolId);
-                                }
-                              }}
-                            >
-                              Delete
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+          <ErrorBoundary>
+            {schools.length === 0 ? (
+              <div className="bg-white p-8 rounded-lg shadow text-center">
+                <p className="text-gray-600 text-lg">
+                  No schools found. Create your first school profile.
+                </p>
               </div>
-            </div>
-          )}
+            ) : (
+              <div className="bg-white rounded-lg shadow overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th
+                          scope="col"
+                          className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                        >
+                          School ID
+                        </th>
+                        <th
+                          scope="col"
+                          className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                        >
+                          School Name
+                        </th>
+                        <th
+                          scope="col"
+                          className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                        >
+                          Address
+                        </th>
+                        <th
+                          scope="col"
+                          className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                        >
+                          Contact Email
+                        </th>
+                        <th
+                          scope="col"
+                          className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                        >
+                          Phone
+                        </th>
+                        <th
+                          scope="col"
+                          className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                        >
+                          Actions
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {schools.map((school) => (
+                        <tr
+                          key={school.schoolId}
+                          className="hover:bg-gray-50"
+                          data-school-id={school.schoolId}
+                          data-school-name={school.name}
+                          data-school-address={school.address}
+                          data-school-contact-email={school.contactEmail}
+                          data-school-phone={school.phone}
+                        >
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm font-medium text-gray-900">
+                              {school.schoolId}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm font-medium text-gray-900">
+                              {school.name}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="text-sm text-gray-900 max-w-xs truncate">
+                              {school.address}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm text-gray-900">
+                              {school.contactEmail}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm text-gray-900">
+                              {school.phone || 'N/A'}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                            <div className="flex gap-2">
+                              <Link
+                                href={`/admin/schools/${school.schoolId}/edit`}
+                                className="text-blue-600 hover:text-blue-900"
+                                data-school-action="edit"
+                              >
+                                Edit
+                              </Link>
+                              <SchoolActions
+                                schoolId={school.schoolId}
+                                schoolName={school.name}
+                              />
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </ErrorBoundary>
         </main>
       </div>
     </>

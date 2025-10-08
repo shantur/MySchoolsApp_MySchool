@@ -214,10 +214,10 @@ export default function AttachmentUpload({
       )}
 
       {/* Upload Progress (placeholder for future implementation) */}
-      {Object.keys(uploadProgress).length > 0 && (
+      {Object.keys(_uploadProgress).length > 0 && (
         <div className="space-y-2">
           <h4 className="text-sm font-medium text-gray-700">Upload Progress</h4>
-          {Object.entries(uploadProgress).map(([id, progress]) => (
+          {Object.entries(_uploadProgress).map(([id, progress]) => (
             <div key={id} className="space-y-1">
               <div className="flex justify-between text-xs text-gray-600">
                 <span>Uploading...</span>
