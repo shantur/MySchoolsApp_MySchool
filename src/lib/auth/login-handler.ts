@@ -6,6 +6,7 @@
  */
 
 import { authenticateUser } from '@/lib/services/auth.service';
+import { authenticateUserMock, shouldUseMockAuth } from '@/lib/services/auth.service.mock';
 import { createSession } from './session';
 import { UserSession } from '@/lib/types';
 
@@ -45,8 +46,10 @@ export async function handleLogin(
       };
     }
 
-    // Authenticate user
-    const userSession = await authenticateUser(email, password);
+    // Authenticate user (use mock if Firebase is not available)
+    const userSession = shouldUseMockAuth() 
+      ? await authenticateUserMock(email, password)
+      : await authenticateUser(email, password);
 
     if (!userSession) {
       return {

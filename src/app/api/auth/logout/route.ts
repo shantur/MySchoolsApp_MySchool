@@ -18,15 +18,12 @@ import { SESSION_CONFIG } from '@/lib/auth/session';
  */
 export async function POST(): Promise<NextResponse> {
   // Handle logout
-  const result = handleLogout();
+  handleLogout();
 
-  // Create response
-  const response = NextResponse.json(
-    {
-      success: result.success,
-      message: 'Logged out successfully',
-    },
-    { status: 200 }
+  // Create response with redirect to login page
+  const response = NextResponse.redirect(
+    new URL('/login', process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'),
+    { status: 302 }
   );
 
   // Clear session cookie by setting Max-Age=0

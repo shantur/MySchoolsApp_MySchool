@@ -12,7 +12,15 @@ export const metadata = {
   description: 'Login to MySchool portal',
 };
 
-export default function LoginPage() {
+interface LoginPageProps {
+  searchParams: {
+    redirect?: string;
+  };
+}
+
+export default function LoginPage({ searchParams }: LoginPageProps) {
+  const redirectUrl = searchParams.redirect;
+
   return (
     <>
       <div 
@@ -35,7 +43,7 @@ export default function LoginPage() {
             </p>
           </div>
 
-          <LoginForm />
+          <LoginForm redirectUrl={redirectUrl} />
 
         <div className="mt-6 text-center text-sm text-gray-600">
           <p>

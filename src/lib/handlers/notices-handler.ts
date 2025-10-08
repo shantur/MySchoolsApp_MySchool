@@ -19,19 +19,30 @@ import {
 
 /**
  * Create a new notice (Admin only)
- * 
+ *
  * @param {UserSession | null} session - Current user session
  * @param {CreateNoticeInput} data - Notice data
  * @param {NoticesService} service - Notices service instance
- * @return {Promise<Notice>} Created notice
+ * @return {Promise<{success: boolean, notice?: Notice, error?: {message: string, code: string}}>} Result object
  */
 export async function createNoticeHandler(
   session: UserSession | null,
   data: CreateNoticeInput,
   service: NoticesService = new NoticesService()
-): Promise<Notice> {
-  requireAdmin(session);
-  return service.createNotice(data);
+): Promise<{success: boolean, notice?: Notice, error?: {message: string, code: string}}> {
+  try {
+    requireAdmin(session);
+    const notice = await service.createNotice(data);
+    return { success: true, notice };
+  } catch (error) {
+    return {
+      success: false,
+      error: {
+        message: error instanceof Error ? error.message : 'Unknown error',
+        code: 'creation_failed',
+      },
+    };
+  }
 }
 
 /**
@@ -130,3 +141,18 @@ export const getNoticeById = (
   noticeId: string,
   session: UserSession | null
 ) => getNoticeHandler(session, noticeId, schoolId);
+
+/**
+ * Get all notices (Admin only)
+ *
+ * @param {UserSession | null} session - Current user session
+ * @param {NoticesService} service - Notices service instance
+ * @return {Promise<Notice[]>} List of all notices
+ */
+export async function getAllNotices(
+  session: UserSession | null,
+  service: NoticesService = new NoticesService()
+): Promise<Notice[]> {
+  requireAdmin(session);
+  return service.listAllNotices();
+}

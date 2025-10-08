@@ -5,10 +5,11 @@
  * HTML structure designed for parsing by Flutter adapter.
  */
 
-import { redirect } from 'next/navigation';
 import { getUserSession } from '@/lib/auth/session';
 import { getNoticesBySchool } from '@/lib/handlers/notices-handler';
 import Link from 'next/link';
+
+export const dynamic = 'force-dynamic';
 
 export const metadata = {
   title: 'Notices - MySchool',
@@ -26,25 +27,18 @@ export default async function NoticesListPage({
 }: NoticesListPageProps) {
   const { schoolId } = params;
   
-  // Get user session
+  // Get user session (middleware already handled authorization)
   const session = await getUserSession();
   
+  // This should never happen if middleware is working correctly,
+  // but we'll handle it gracefully for defense-in-depth
   if (!session) {
-    redirect('/login');
+    throw new Error('Access denied: Authentication required');
   }
   
   // Verify user has access to this school
   if (session.schoolId !== schoolId && session.role !== 'admin') {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-red-600">Unauthorized</h1>
-          <p className="mt-2 text-gray-600">
-            You do not have access to this school&apos;s notices.
-          </p>
-        </div>
-      </div>
-    );
+    throw new Error('Access denied: School access required');
   }
   
   // Fetch notices

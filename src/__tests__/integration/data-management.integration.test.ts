@@ -6,9 +6,9 @@
  * Tests Schools, Groups, Notices, and Attachments with RLS.
  */
 
-import { SchoolsService } from '../../lib/services/schools.service';
-import { GroupsService } from '../../lib/services/groups.service';
-import { NoticesService } from '../../lib/services/notices.service';
+import { _SchoolsService } from '../../lib/services/schools.service';
+import { _GroupsService } from '../../lib/services/groups.service';
+import { _NoticesService } from '../../lib/services/notices.service';
 import { AttachmentsService } from '../../lib/services/attachments.service';
 import {
   createSchoolHandler,
@@ -172,7 +172,7 @@ describe('Data Management Integration Tests', () => {
       expect(group1.schoolId).toBe(school.schoolId);
 
       // 3. Admin creates a notice
-      const notice = await createNoticeHandler(
+      const noticeResult = await createNoticeHandler(
         adminSession,
         {
           schoolId: school.schoolId,
@@ -182,6 +182,9 @@ describe('Data Management Integration Tests', () => {
         }
       );
 
+      expect(noticeResult.success).toBe(true);
+      expect(noticeResult.notice).toBeDefined();
+      const notice = noticeResult.notice!;
       expect(notice.title).toBe('Important Announcement');
       expect(notice.schoolId).toBe(school.schoolId);
       expect(notice.status).toBe('published');
@@ -284,13 +287,16 @@ describe('Data Management Integration Tests', () => {
     });
 
     it('should validate required fields for notices', async () => {
-      await expect(
-        createNoticeHandler(adminSession, {
-          schoolId: 'school123',
-          title: '',
-          body: 'Test body',
-        })
-      ).rejects.toThrow('Notice title is required');
+      const result = await createNoticeHandler(adminSession, {
+        schoolId: 'school123',
+        title: '',
+        body: 'Test body',
+      });
+      
+      expect(result.success).toBe(false);
+      expect(result.error).toBeDefined();
+      expect(result.error?.message).toBe('Notice title is required');
+      expect(result.error?.code).toBe('creation_failed');
     });
   });
 });

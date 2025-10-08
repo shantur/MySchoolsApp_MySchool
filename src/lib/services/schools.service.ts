@@ -5,9 +5,18 @@
  * Implements business logic and data validation for school entities.
  */
 
-import { adminDb } from '../firebase/admin';
+import { getAdminDb } from '../firebase/admin-lazy';
 import type { School } from '../types';
 import { Timestamp } from 'firebase-admin/firestore';
+
+// Helper function to get Firestore instance
+const getDb = () => {
+  const db = getAdminDb();
+  if (!db) {
+    throw new Error('Firestore is not available');
+  }
+  return db;
+};
 
 /**
  * Input type for creating a new school
@@ -56,7 +65,8 @@ export class SchoolsService {
       updatedAt: now,
     };
 
-    const docRef = await adminDb.collection(this.collection).add(schoolData);
+    const db = getDb();
+    const docRef = await db.collection(this.collection).add(schoolData);
 
     return {
       schoolId: docRef.id,
@@ -71,7 +81,8 @@ export class SchoolsService {
    * @return {Promise<School | null>} School if found, null otherwise
    */
   async getSchoolById(schoolId: string): Promise<School | null> {
-    const doc = await adminDb
+    const db = getDb();
+    const doc = await db
       .collection(this.collection)
       .doc(schoolId)
       .get();
@@ -105,7 +116,7 @@ export class SchoolsService {
     }
 
     // Prepare update data
-    const updateData: any = {
+    const updateData: Partial<School> & { updatedAt: import('firebase-admin/firestore').Timestamp } = {
       ...updates,
       updatedAt: Timestamp.now(),
     };
@@ -115,7 +126,8 @@ export class SchoolsService {
       key => updateData[key] === undefined && delete updateData[key]
     );
 
-    await adminDb
+    const db = getDb();
+    await db
       .collection(this.collection)
       .doc(schoolId)
       .set(updateData, { merge: true });
@@ -136,7 +148,8 @@ export class SchoolsService {
       throw new Error('School not found');
     }
 
-    await adminDb.collection(this.collection).doc(schoolId).delete();
+    const db = getDb();
+    await db.collection(this.collection).doc(schoolId).delete();
   }
 
   /**
@@ -145,12 +158,13 @@ export class SchoolsService {
    * @return {Promise<School[]>} Array of all schools
    */
   async listSchools(): Promise<School[]> {
-    const snapshot = await adminDb
+    const db = getDb();
+    const snapshot = await db
       .collection(this.collection)
       .orderBy('name', 'asc')
       .get();
 
-    return snapshot.docs.map((doc: any) => ({
+    return snapshot.docs.map((doc: import('firebase-admin/firestore').QueryDocumentSnapshot) => ({
       schoolId: doc.id,
       ...doc.data(),
     })) as School[];

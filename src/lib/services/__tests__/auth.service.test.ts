@@ -197,9 +197,9 @@ describe('Authentication Service', () => {
       );
       (adminDb.collection as jest.Mock).mockReturnValue({
         doc: jest.fn().mockReturnValue(mockDocRef),
-      });
+      }      );
 
-      const result = await createUserAccount({
+      await createUserAccount({
         email: 'newadmin@example.com',
         password: 'AdminPass123!',
         schoolId: 'school-admin',

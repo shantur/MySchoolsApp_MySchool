@@ -4,7 +4,6 @@
  */
 
 import { SchoolsService } from '../schools.service';
-import type { School } from '../../types';
 
 // Mock Firebase Admin
 jest.mock('../../firebase/admin', () => ({

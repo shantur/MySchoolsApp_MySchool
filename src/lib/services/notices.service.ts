@@ -5,9 +5,18 @@
  * Implements business logic for notice entities including attachments.
  */
 
-import { adminDb } from '../firebase/admin';
+import { getAdminDb } from '../firebase/admin-lazy';
 import type { Notice, Attachment } from '../types';
 import { Timestamp } from 'firebase-admin/firestore';
+
+// Helper function to get Firestore instance
+const getDb = () => {
+  const db = getAdminDb();
+  if (!db) {
+    throw new Error('Firestore is not available');
+  }
+  return db;
+};
 
 /**
  * Input type for creating a new notice
@@ -68,7 +77,8 @@ export class NoticesService {
       updatedAt: now,
     };
 
-    const docRef = await adminDb.collection(this.collection).add(noticeData);
+    const db = getDb();
+    const docRef = await db.collection(this.collection).add(noticeData);
 
     return {
       noticeId: docRef.id,
@@ -77,13 +87,32 @@ export class NoticesService {
   }
 
   /**
+   * List all notices (for admin)
+   *
+   * @return {Promise<Notice[]>} List of all notices
+   */
+   async listAllNotices(): Promise<Notice[]> {
+     const db = getDb();
+     const snapshot = await db
+       .collection(this.collection)
+       .orderBy('publicationDate', 'desc')
+       .get();
+
+     return snapshot.docs.map((doc: import('firebase-admin/firestore').QueryDocumentSnapshot) => ({
+       noticeId: doc.id,
+       ...doc.data(),
+     })) as Notice[];
+   }
+
+  /**
    * Get a notice by ID
-   * 
+   *
    * @param {string} noticeId - The notice ID
    * @return {Promise<Notice | null>} Notice if found, null otherwise
    */
   async getNoticeById(noticeId: string): Promise<Notice | null> {
-    const doc = await adminDb
+    const db = getDb();
+    const doc = await db
       .collection(this.collection)
       .doc(noticeId)
       .get();
@@ -117,7 +146,7 @@ export class NoticesService {
     }
 
     // Prepare update data
-    const updateData: any = {
+    const updateData: Partial<Notice> & { updatedAt: import('firebase-admin/firestore').Timestamp } = {
       ...updates,
       updatedAt: Timestamp.now(),
     };
@@ -127,7 +156,8 @@ export class NoticesService {
       key => updateData[key] === undefined && delete updateData[key]
     );
 
-    await adminDb
+    const db = getDb();
+    await db
       .collection(this.collection)
       .doc(noticeId)
       .set(updateData, { merge: true });
@@ -148,7 +178,8 @@ export class NoticesService {
       throw new Error('Notice not found');
     }
 
-    await adminDb.collection(this.collection).doc(noticeId).delete();
+    const db = getDb();
+    await db.collection(this.collection).doc(noticeId).delete();
   }
 
   /**
@@ -162,7 +193,8 @@ export class NoticesService {
     schoolId: string,
     status?: 'draft' | 'published' | 'archived'
   ): Promise<Notice[]> {
-    let query = adminDb
+    const db = getDb();
+    let query = db
       .collection(this.collection)
       .where('schoolId', '==', schoolId);
 
@@ -174,7 +206,7 @@ export class NoticesService {
       .orderBy('publicationDate', 'desc')
       .get();
 
-    return snapshot.docs.map((doc: any) => ({
+    return snapshot.docs.map((doc: import('firebase-admin/firestore').QueryDocumentSnapshot) => ({
       noticeId: doc.id,
       ...doc.data(),
     })) as Notice[];

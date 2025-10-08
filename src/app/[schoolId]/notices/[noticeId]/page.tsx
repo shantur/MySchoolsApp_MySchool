@@ -5,10 +5,11 @@
  * HTML structure designed for parsing by Flutter adapter.
  */
 
-import { redirect } from 'next/navigation';
 import { getUserSession } from '@/lib/auth/session';
 import { getNoticeById } from '@/lib/handlers/notices-handler';
 import Link from 'next/link';
+
+export const dynamic = 'force-dynamic';
 
 export const metadata = {
   title: 'Notice Detail - MySchool',
@@ -42,11 +43,13 @@ export default async function NoticeDetailPage({
 }: NoticeDetailPageProps) {
   const { schoolId, noticeId } = params;
   
-  // Get user session
+  // Get user session (middleware already handled authorization)
   const session = await getUserSession();
   
+  // This should never happen if middleware is working correctly,
+  // but we'll handle it gracefully for defense-in-depth
   if (!session) {
-    redirect('/login');
+    throw new Error('Access denied: Authentication required');
   }
   
   // Verify user has access to this school
@@ -153,15 +156,12 @@ export default async function NoticeDetailPage({
                   Attachments
                 </h2>
                 <ul className="attachments-list space-y-2">
-                  {notice.attachments.map((attachment, index) => {
-                    // Generate a simple attachment ID from index
-                    const attachmentId = `attach${index + 1}`;
-                    
+                  {notice.attachments.map((attachment) => {
                     return (
                       <li
-                        key={index}
+                        key={attachment.id}
                         className="attachment-item flex items-center gap-3 p-3 bg-gray-50 rounded hover:bg-gray-100 transition-colors"
-                        data-attachment-id={attachmentId}
+                        data-attachment-id={attachment.id}
                       >
                         <span className="text-2xl">
                           {attachment.fileType.startsWith('image/')

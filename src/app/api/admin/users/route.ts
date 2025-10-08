@@ -1,12 +1,57 @@
 /**
  * Admin Users API Route
  * 
- * Handles user creation by admins
- * POST /api/admin/users
+ * Handles user management by admins
+ * GET /api/admin/users - List users (admin only)
+ * POST /api/admin/users - Create user (admin only)
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { handleCreateUser } from '@/lib/auth/create-user-handler';
+import { getUserSession } from '@/lib/auth/session';
+
+/**
+ * GET /api/admin/users
+ * 
+ * Lists all users (admin only)
+ * 
+ * @param {NextRequest} request - Next.js request object
+ * @return {Promise<NextResponse>} JSON response with users list or error
+ */
+export async function GET(_request: NextRequest): Promise<NextResponse> {
+  // Get user session
+  const session = await getUserSession();
+
+  if (!session) {
+    return NextResponse.json(
+      {
+        error: 'Authentication required',
+        code: 'UNAUTHORIZED',
+      },
+      { status: 401 }
+    );
+  }
+
+  if (session.role !== 'admin') {
+    return NextResponse.json(
+      {
+        error: 'Admin access required',
+        code: 'FORBIDDEN',
+      },
+      { status: 403 }
+    );
+  }
+
+  // This is a placeholder implementation
+  // In a real implementation, this would fetch users from the database
+  return NextResponse.json(
+    {
+      users: [],
+      message: 'Users endpoint - admin access required',
+    },
+    { status: 200 }
+  );
+}
 
 /**
  * POST /api/admin/users
@@ -17,6 +62,29 @@ import { handleCreateUser } from '@/lib/auth/create-user-handler';
  * @return {Promise<NextResponse>} JSON response with user data or error
  */
 export async function POST(request: NextRequest): Promise<NextResponse> {
+  // Get user session
+  const session = await getUserSession();
+
+  if (!session) {
+    return NextResponse.json(
+      {
+        error: 'Authentication required',
+        code: 'UNAUTHORIZED',
+      },
+      { status: 401 }
+    );
+  }
+
+  if (session.role !== 'admin') {
+    return NextResponse.json(
+      {
+        error: 'Admin access required',
+        code: 'FORBIDDEN',
+      },
+      { status: 403 }
+    );
+  }
+
   // Parse request body
   const body = await request.json();
   const { email, password, schoolId, role, displayName, groupIds } = body;

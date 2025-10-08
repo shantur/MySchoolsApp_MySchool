@@ -5,9 +5,14 @@
  * HTML structure designed for parsing by Flutter adapter.
  */
 
-import { redirect } from 'next/navigation';
 import { getUserSession } from '@/lib/auth/session';
+import { getAllUsers } from '@/lib/handlers/users-handler';
+import { getAllSchools } from '@/lib/handlers/schools-handler';
+import { getAllGroups } from '@/lib/handlers/groups-handler';
+import { getAllNotices } from '@/lib/handlers/notices-handler';
 import Link from 'next/link';
+
+export const dynamic = 'force-dynamic';
 
 export const metadata = {
   title: 'Admin Dashboard - MySchool',
@@ -15,32 +20,32 @@ export const metadata = {
 };
 
 export default async function AdminDashboardPage() {
-  // Get user session
+  // Get user session (middleware already handled authorization)
   const session = await getUserSession();
   
-  if (!session) {
-    redirect('/login');
+  // This should never happen if middleware is working correctly,
+  // but we'll handle it gracefully for defense-in-depth
+  if (!session || session.role !== 'admin') {
+    throw new Error('Access denied: Admin access required');
   }
-  
-  // Verify user is admin
-  if (session.role !== 'admin') {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-red-600">Unauthorized</h1>
-          <p className="mt-2 text-gray-600">
-            You must be an administrator to access this page.
-          </p>
-          <Link
-            href={`/${session.schoolId}/notices`}
-            className="mt-4 inline-block text-blue-600 hover:text-blue-800"
-          >
-            Go to Notices
-          </Link>
-        </div>
-      </div>
-    );
-  }
+
+  // Fetch summary statistics
+  const [users, schools, groups, notices] = await Promise.all([
+    getAllUsers(),
+    getAllSchools(session),
+    getAllGroups(session),
+    getAllNotices(session),
+  ]);
+
+  // Calculate statistics
+  const totalSchools = schools.length;
+  const totalUsers = users.length;
+  const totalGroups = groups.length;
+  const totalNotices = notices.length;
+  const activeUsers = users.filter(user => user.role === 'user').length;
+  const adminUsers = users.filter(user => user.role === 'admin').length;
+  const publishedNotices = notices.filter(notice => notice.status === 'published').length;
+  const draftNotices = notices.filter(notice => notice.status === 'draft').length;
   
   return (
     <>
@@ -79,6 +84,74 @@ export default async function AdminDashboardPage() {
         </header>
 
         <main className="max-w-7xl mx-auto px-4 py-8">
+          {/* Summary Statistics Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            {/* Total Schools Card */}
+            <div
+              className="bg-white p-6 rounded-lg shadow hover:shadow-lg transition-shadow"
+              data-admin-stat="total-schools"
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Total Schools</p>
+                  <p className="text-3xl font-bold text-gray-900">{totalSchools}</p>
+                </div>
+                <div className="text-3xl">🏫</div>
+              </div>
+            </div>
+
+            {/* Total Users Card */}
+            <div
+              className="bg-white p-6 rounded-lg shadow hover:shadow-lg transition-shadow"
+              data-admin-stat="total-users"
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Total Users</p>
+                  <p className="text-3xl font-bold text-gray-900">{totalUsers}</p>
+                  <div className="flex gap-4 mt-2">
+                    <span className="text-xs text-blue-600">{activeUsers} users</span>
+                    <span className="text-xs text-purple-600">{adminUsers} admins</span>
+                  </div>
+                </div>
+                <div className="text-3xl">👥</div>
+              </div>
+            </div>
+
+            {/* Total Groups Card */}
+            <div
+              className="bg-white p-6 rounded-lg shadow hover:shadow-lg transition-shadow"
+              data-admin-stat="total-groups"
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Total Groups</p>
+                  <p className="text-3xl font-bold text-gray-900">{totalGroups}</p>
+                </div>
+                <div className="text-3xl">📚</div>
+              </div>
+            </div>
+
+            {/* Total Notices Card */}
+            <div
+              className="bg-white p-6 rounded-lg shadow hover:shadow-lg transition-shadow"
+              data-admin-stat="total-notices"
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Total Notices</p>
+                  <p className="text-3xl font-bold text-gray-900">{totalNotices}</p>
+                  <div className="flex gap-4 mt-2">
+                    <span className="text-xs text-green-600">{publishedNotices} published</span>
+                    <span className="text-xs text-yellow-600">{draftNotices} drafts</span>
+                  </div>
+                </div>
+                <div className="text-3xl">📢</div>
+              </div>
+            </div>
+          </div>
+
+          {/* Management Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {/* Schools Management */}
             <div

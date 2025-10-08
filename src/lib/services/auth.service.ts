@@ -5,7 +5,7 @@
  * using Firebase Admin SDK.
  */
 
-import { adminAuth, adminDb } from '@/lib/firebase/admin';
+import { getAdminAuth, getAdminDb } from '@/lib/firebase/admin-lazy';
 import { UserSession, User } from '@/lib/types';
 import { Timestamp } from 'firebase-admin/firestore';
 
@@ -34,9 +34,17 @@ export interface CreateUserParams {
  */
 export async function authenticateUser(
   email: string,
-  password: string
+  _password: string
 ): Promise<UserSession | null> {
   try {
+    const adminAuth = getAdminAuth();
+    const adminDb = getAdminDb();
+    
+    if (!adminAuth || !adminDb) {
+      console.error('Firebase Admin SDK not initialized');
+      return null;
+    }
+    
     // Get user by email from Firebase Auth
     const userRecord = await adminAuth.getUserByEmail(email);
     
@@ -55,8 +63,9 @@ export async function authenticateUser(
       schoolId: userData.schoolId,
       role: userData.role,
       displayName: userData.displayName,
+      groupIds: userData.groupIds,
     };
-  } catch (error) {
+  } catch {
     // User not found or authentication failed
     return null;
   }
@@ -73,6 +82,13 @@ export async function createUserAccount(
   params: CreateUserParams
 ): Promise<User> {
   const { email, password, schoolId, role, displayName, groupIds } = params;
+  
+  const adminAuth = getAdminAuth();
+  const adminDb = getAdminDb();
+  
+  if (!adminAuth || !adminDb) {
+    throw new Error('Firebase Admin SDK not initialized');
+  }
   
   try {
     // Create user in Firebase Auth
@@ -117,5 +133,9 @@ export async function setUserRole(
   uid: string,
   role: 'user' | 'admin'
 ): Promise<void> {
+  const adminAuth = getAdminAuth();
+  if (!adminAuth) {
+    throw new Error('Firebase Admin SDK not initialized');
+  }
   await adminAuth.setCustomUserClaims(uid, { role });
 }

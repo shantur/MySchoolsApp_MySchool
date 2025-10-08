@@ -120,3 +120,17 @@ export async function listSchoolsHandler(
   const school = await service.getSchoolById(session!.schoolId);
   return school ? [school] : [];
 }
+
+/**
+ * Get all schools (alias for listSchoolsHandler for backward compatibility)
+ * 
+ * @param {UserSession | null} session - Current user session
+ * @param {SchoolsService} service - Schools service instance
+ * @return {Promise<School[]>} List of schools
+ */
+export async function getAllSchools(
+  session: UserSession | null,
+  service: SchoolsService = new SchoolsService()
+): Promise<School[]> {
+  return listSchoolsHandler(session, service);
+}

@@ -5,9 +5,18 @@
  * Implements business logic and data validation for group entities.
  */
 
-import { adminDb } from '../firebase/admin';
+import { getAdminDb } from '../firebase/admin-lazy';
 import type { Group } from '../types';
 import { Timestamp } from 'firebase-admin/firestore';
+
+// Helper function to get Firestore instance
+const getDb = () => {
+  const db = getAdminDb();
+  if (!db) {
+    throw new Error('Firestore is not available');
+  }
+  return db;
+};
 
 /**
  * Input type for creating a new group
@@ -57,7 +66,8 @@ export class GroupsService {
       updatedAt: now,
     };
 
-    const docRef = await adminDb.collection(this.collection).add(groupData);
+    const db = getDb();
+    const docRef = await db.collection(this.collection).add(groupData);
 
     return {
       groupId: docRef.id,
@@ -72,7 +82,8 @@ export class GroupsService {
    * @return {Promise<Group | null>} Group if found, null otherwise
    */
   async getGroupById(groupId: string): Promise<Group | null> {
-    const doc = await adminDb.collection(this.collection).doc(groupId).get();
+    const db = getDb();
+    const doc = await db.collection(this.collection).doc(groupId).get();
 
     if (!doc.exists) {
       return null;
@@ -103,7 +114,7 @@ export class GroupsService {
     }
 
     // Prepare update data
-    const updateData: any = {
+    const updateData: Partial<Group> & { updatedAt: import('firebase-admin/firestore').Timestamp } = {
       ...updates,
       updatedAt: Timestamp.now(),
     };
@@ -113,7 +124,8 @@ export class GroupsService {
       key => updateData[key] === undefined && delete updateData[key]
     );
 
-    await adminDb
+    const db = getDb();
+    await db
       .collection(this.collection)
       .doc(groupId)
       .set(updateData, { merge: true });
@@ -134,7 +146,8 @@ export class GroupsService {
       throw new Error('Group not found');
     }
 
-    await adminDb.collection(this.collection).doc(groupId).delete();
+    const db = getDb();
+    await db.collection(this.collection).doc(groupId).delete();
   }
 
   /**
@@ -144,13 +157,14 @@ export class GroupsService {
    * @return {Promise<Group[]>} Array of groups for the school
    */
   async listGroupsBySchool(schoolId: string): Promise<Group[]> {
-    const snapshot = await adminDb
+    const db = getDb();
+    const snapshot = await db
       .collection(this.collection)
       .where('schoolId', '==', schoolId)
       .orderBy('name', 'asc')
       .get();
 
-    return snapshot.docs.map((doc: any) => ({
+    return snapshot.docs.map((doc: import('firebase-admin/firestore').QueryDocumentSnapshot) => ({
       groupId: doc.id,
       ...doc.data(),
     })) as Group[];

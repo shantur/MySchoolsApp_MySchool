@@ -53,6 +53,7 @@ export function createSession(sessionData: UserSession): string {
       schoolId: sessionData.schoolId,
       role: sessionData.role,
       displayName: sessionData.displayName,
+      groupIds: sessionData.groupIds,
     },
     secret,
     {
@@ -80,7 +81,14 @@ export function validateSession(token: string): UserSession | null {
   const secret = getSessionSecret();
   
   try {
-    const payload = jwt.verify(token, secret) as any;
+    const payload = jwt.verify(token, secret) as {
+      uid: string;
+      email: string;
+      schoolId: string;
+      role: string;
+      displayName?: string;
+      groupIds?: string[];
+    };
     
     // Validate payload structure
     if (
@@ -98,8 +106,9 @@ export function validateSession(token: string): UserSession | null {
       schoolId: payload.schoolId,
       role: payload.role as 'user' | 'admin',
       displayName: payload.displayName,
+      groupIds: payload.groupIds,
     };
-  } catch (error) {
+  } catch {
     // Token is invalid, expired, or verification failed
     return null;
   }

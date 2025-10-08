@@ -5,9 +5,18 @@
  * Manages attachment metadata for notices.
  */
 
-import { adminStorage } from '../firebase/admin';
+import { getAdminStorage } from '../firebase/admin-lazy';
 import type { Attachment } from '../types';
 import { randomBytes } from 'crypto';
+
+// Helper function to get Storage instance
+const getStorage = () => {
+  const storage = getAdminStorage();
+  if (!storage) {
+    throw new Error('Firebase Storage is not available');
+  }
+  return storage;
+};
 
 /**
  * Input type for uploading an attachment
@@ -62,7 +71,8 @@ export class AttachmentsService {
       `attachments/${input.schoolId}/${input.noticeId}/${attachmentId}`;
 
     // Upload file to Storage
-    const bucket = adminStorage.bucket();
+    const storage = getStorage();
+    const bucket = storage.bucket();
     const file = bucket.file(filePath);
 
     await file.save(input.buffer, {
@@ -77,6 +87,7 @@ export class AttachmentsService {
       `noticeId=${input.noticeId}&schoolId=${input.schoolId}`;
 
     return {
+      id: attachmentId,
       fileName: input.fileName,
       fileType: input.mimeType,
       downloadURL,
@@ -100,7 +111,8 @@ export class AttachmentsService {
     const filePath = 
       `attachments/${schoolId}/${noticeId}/${attachmentId}`;
 
-    const bucket = adminStorage.bucket();
+    const storage = getStorage();
+    const bucket = storage.bucket();
     const file = bucket.file(filePath);
 
     // Generate signed URL valid for 1 hour
@@ -128,7 +140,8 @@ export class AttachmentsService {
     const filePath = 
       `attachments/${schoolId}/${noticeId}/${attachmentId}`;
 
-    const bucket = adminStorage.bucket();
+    const storage = getStorage();
+    const bucket = storage.bucket();
     const file = bucket.file(filePath);
 
     await file.delete();

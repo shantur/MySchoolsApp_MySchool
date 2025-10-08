@@ -98,7 +98,7 @@ export async function deleteGroupHandler(
 
 /**
  * List groups for a school
- * 
+ *
  * @param {UserSession | null} session - Current user session
  * @param {string} schoolId - School ID
  * @param {GroupsService} service - Groups service instance
@@ -127,4 +127,33 @@ export async function listGroupsHandler(
   return allGroups.filter(
     group => session!.groupIds!.includes(group.groupId)
   );
+}
+
+/**
+ * Get all groups for a school (used for profile display)
+ *
+ * @param {string} schoolId - School ID
+ * @param {GroupsService} service - Groups service instance
+ * @return {Promise<Group[]>} List of all groups for the school
+ */
+export async function getGroupsBySchool(
+  schoolId: string,
+  service: GroupsService = new GroupsService()
+): Promise<Group[]> {
+  return service.listGroupsBySchool(schoolId);
+}
+
+/**
+ * Get all groups (alias for listGroupsHandler with session's school)
+ * 
+ * @param {UserSession | null} session - Current user session
+ * @param {GroupsService} service - Groups service instance
+ * @return {Promise<Group[]>} List of groups
+ */
+export async function getAllGroups(
+  session: UserSession | null,
+  service: GroupsService = new GroupsService()
+): Promise<Group[]> {
+  requireAuth(session);
+  return listGroupsHandler(session, session!.schoolId, service);
 }

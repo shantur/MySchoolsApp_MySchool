@@ -10,7 +10,11 @@
 import { useState, FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 
-export default function LoginForm() {
+interface LoginFormProps {
+  redirectUrl?: string;
+}
+
+export default function LoginForm({ redirectUrl }: LoginFormProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -39,13 +43,23 @@ export default function LoginForm() {
         return;
       }
 
-      // Redirect based on role
-      if (data.user.role === 'admin') {
+      // Login successful - reset loading state
+      setIsLoading(false);
+
+      // Redirect to the original URL if provided, otherwise based on role
+      if (redirectUrl) {
+        console.log('Redirecting to:', redirectUrl);
+        router.push(redirectUrl);
+      } else if (data.user.role === 'admin') {
+        console.log('Redirecting admin to:', '/admin/dashboard');
         router.push('/admin/dashboard');
       } else {
-        router.push(`/${data.user.schoolId}/notices`);
+        const userRedirect = `/${data.user.schoolId}/notices`;
+        console.log('Redirecting user to:', userRedirect);
+        router.push(userRedirect);
       }
-    } catch {
+    } catch (error) {
+      console.error('Login error:', error);
       setError('An error occurred. Please try again.');
       setIsLoading(false);
     }

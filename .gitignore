@@ -69,3 +69,21 @@ Thumbs.db
 # Evidence and temporary files
 evidences/
 dev-server.log
+playwright-report/
+test-results/# Temporary test and debug files
+create-test-*.js
+create-test-*.ts
+debug-*.js
+debug-*.png
+emulator.log
+server.log
+test-*.js
+test-*.sh
+test-*.txt
+test-*.json
+generate_token.js
+validate-rules.js
+verify-admin-fixes.js
+cookies.txt
+
+MySchoolsApp_MySchool

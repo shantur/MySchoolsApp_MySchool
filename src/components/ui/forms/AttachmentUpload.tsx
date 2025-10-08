@@ -1,0 +1,238 @@
+/**
+ * Attachment Upload Component
+ *
+ * Component for uploading and managing file attachments.
+ * Supports drag-and-drop and file selection.
+ */
+
+'use client';
+
+import { useState, useRef } from 'react';
+
+interface Attachment {
+  id: string;
+  fileName: string;
+  fileType: string;
+  size: number;
+  file?: File;
+}
+
+interface AttachmentUploadProps {
+  attachments: Attachment[];
+  onChange: (attachments: Attachment[]) => void;
+  disabled?: boolean;
+  maxFiles?: number;
+  maxSize?: number; // in bytes
+  acceptedTypes?: string[];
+}
+
+export default function AttachmentUpload({
+  attachments,
+  onChange,
+  disabled = false,
+  maxFiles = 5,
+  maxSize = 10 * 1024 * 1024, // 10MB default
+  acceptedTypes = ['image/jpeg', 'image/png', 'image/gif', 'application/pdf'],
+}: AttachmentUploadProps) {
+  const [dragActive, setDragActive] = useState(false);
+  const [_uploadProgress, _setUploadProgress] = useState<{ [key: string]: number }>({});
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Generate unique ID
+  const generateId = () => `attachment_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+  // Validate file
+  const validateFile = (file: File): string | null => {
+    if (!acceptedTypes.includes(file.type)) {
+      return 'File type not supported. Please upload JPEG, PNG, GIF, or PDF files.';
+    }
+    if (file.size > maxSize) {
+      return `File size too large. Maximum size is ${Math.round(maxSize / 1024 / 1024)}MB.`;
+    }
+    if (attachments.length >= maxFiles) {
+      return `Maximum ${maxFiles} files allowed.`;
+    }
+    return null;
+  };
+
+  // Handle file selection
+  const handleFiles = (files: FileList | null) => {
+    if (!files || disabled) return;
+
+    const newAttachments: Attachment[] = [];
+    const errors: string[] = [];
+
+    Array.from(files).forEach((file) => {
+      const error = validateFile(file);
+      if (error) {
+        errors.push(`${file.name}: ${error}`);
+        return;
+      }
+
+      const attachment: Attachment = {
+        id: generateId(),
+        fileName: file.name,
+        fileType: file.type,
+        size: file.size,
+        file,
+      };
+
+      newAttachments.push(attachment);
+    });
+
+    if (errors.length > 0) {
+      alert(errors.join('\n'));
+    }
+
+    if (newAttachments.length > 0) {
+      onChange([...attachments, ...newAttachments]);
+    }
+  };
+
+  // Handle drag events
+  const handleDrag = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === 'dragenter' || e.type === 'dragover') {
+      setDragActive(true);
+    } else if (e.type === 'dragleave') {
+      setDragActive(false);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+    handleFiles(e.dataTransfer.files);
+  };
+
+  // Remove attachment
+  const removeAttachment = (id: string) => {
+    onChange(attachments.filter(att => att.id !== id));
+  };
+
+  // Format file size
+  const formatFileSize = (bytes: number): string => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+
+  // Get file icon
+  const getFileIcon = (fileType: string): string => {
+    if (fileType.startsWith('image/')) return '🖼️';
+    if (fileType === 'application/pdf') return '📄';
+    return '📎';
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Upload Area */}
+      <div
+        className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors ${
+          dragActive
+            ? 'border-blue-500 bg-blue-50'
+            : 'border-gray-300 hover:border-gray-400'
+        } ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+        onDragEnter={handleDrag}
+        onDragLeave={handleDrag}
+        onDragOver={handleDrag}
+        onDrop={handleDrop}
+        onClick={() => !disabled && fileInputRef.current?.click()}
+        data-testid="attachment-upload-area"
+        data-attachment-upload-area
+      >
+        <div className="space-y-2">
+          <div className="text-4xl">📁</div>
+          <div className="text-lg font-medium text-gray-700">
+            {dragActive ? 'Drop files here' : 'Upload Attachments'}
+          </div>
+          <div className="text-sm text-gray-500">
+            Drag and drop files here, or click to select files
+          </div>
+          <div className="text-xs text-gray-400">
+            Supported: JPEG, PNG, GIF, PDF (max {Math.round(maxSize / 1024 / 1024)}MB each, max {maxFiles} files)
+          </div>
+        </div>
+
+        <input
+          ref={fileInputRef}
+          type="file"
+          multiple
+          accept={acceptedTypes.join(',')}
+          onChange={(e) => handleFiles(e.target.files)}
+          disabled={disabled}
+          className="hidden"
+          data-testid="attachment-file-input"
+          data-attachment-file-input
+        />
+      </div>
+
+      {/* Attachments List */}
+      {attachments.length > 0 && (
+        <div className="space-y-2">
+          <h4 className="text-sm font-medium text-gray-700">
+            Attachments ({attachments.length}/{maxFiles})
+          </h4>
+          <div className="space-y-2">
+            {attachments.map((attachment) => (
+              <div
+                key={attachment.id}
+                className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200"
+                data-attachment-id={attachment.id}
+                data-attachment-name={attachment.fileName}
+                data-attachment-type={attachment.fileType}
+                data-attachment-size={attachment.size}
+              >
+                <div className="flex items-center space-x-3">
+                  <div className="text-2xl">{getFileIcon(attachment.fileType)}</div>
+                  <div>
+                    <div className="text-sm font-medium text-gray-900">
+                      {attachment.fileName}
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      {formatFileSize(attachment.size)}
+                    </div>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => removeAttachment(attachment.id)}
+                  disabled={disabled}
+                  className="text-red-600 hover:text-red-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                  data-attachment-action="remove"
+                >
+                  Remove
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Upload Progress (placeholder for future implementation) */}
+      {Object.keys(uploadProgress).length > 0 && (
+        <div className="space-y-2">
+          <h4 className="text-sm font-medium text-gray-700">Upload Progress</h4>
+          {Object.entries(uploadProgress).map(([id, progress]) => (
+            <div key={id} className="space-y-1">
+              <div className="flex justify-between text-xs text-gray-600">
+                <span>Uploading...</span>
+                <span>{progress}%</span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-2">
+                <div
+                  className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                  style={{ width: `${progress}%` }}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}

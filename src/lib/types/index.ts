@@ -55,6 +55,7 @@ export interface Group {
  * Attachment metadata embedded in notices
  */
 export interface Attachment {
+  id: string; // Unique attachment identifier for HTML parsing
   fileName: string;
   fileType: string;
   downloadURL: string;

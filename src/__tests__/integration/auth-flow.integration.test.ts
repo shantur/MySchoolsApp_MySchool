@@ -7,7 +7,7 @@
  * @jest-environment node
  */
 
-import { authenticateUser, createUserAccount } from '@/lib/services/auth.service';
+import { _authenticateUser, _createUserAccount } from '@/lib/services/auth.service';
 import { createSession, validateSession } from '@/lib/auth/session';
 import { handleLogin } from '@/lib/auth/login-handler';
 import { handleCreateUser } from '@/lib/auth/create-user-handler';
@@ -43,7 +43,7 @@ jest.mock('@/lib/firebase/admin', () => {
       setCustomUserClaims: jest.fn(async () => {}),
     },
     adminDb: {
-      collection: jest.fn((collectionName: string) => ({
+      collection: jest.fn((_collectionName: string) => ({
         doc: (docId: string) => ({
           get: async () => {
             const data = mockUserDocs.get(docId);
@@ -170,7 +170,7 @@ describe('Authentication Flow Integration Tests', () => {
       });
 
       // Try to create another user with same email
-      const result = await handleCreateUser({
+      await handleCreateUser({
         email: 'duplicate@example.com',
         password: 'DifferentPass123!',
         schoolId: 'school-1',
