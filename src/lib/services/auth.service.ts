@@ -24,34 +24,66 @@ export interface CreateUserParams {
 /**
  * Authenticate a user with email and password
  * 
- * Note: This is a simplified authentication for the testbed.
- * In production, you would use Firebase Client SDK for
- * actual password verification.
+ * Uses Firebase Auth REST API for password verification (works with both
+ * emulators and production), then fetches user data from Firestore using
+ * Admin SDK.
  * 
  * @param {string} email - User email
- * @param {string} password - User password (not used in this implementation)
+ * @param {string} password - User password
  * @return {Promise<UserSession | null>} User session data or null
  */
 export async function authenticateUser(
   email: string,
-  _password: string
+  password: string
 ): Promise<UserSession | null> {
   try {
-    const adminAuth = getAdminAuth();
-    const adminDb = getAdminDb();
+    // Determine Firebase Auth endpoint based on environment
+    const useEmulator = process.env.USE_FIREBASE_EMULATORS === 'true';
+    const apiKey = process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
     
-    if (!adminAuth || !adminDb) {
-      console.error('Firebase Admin SDK not initialized');
+    if (!apiKey) {
+      console.error('Firebase API key not configured');
       return null;
     }
     
-    // Get user by email from Firebase Auth
-    const userRecord = await adminAuth.getUserByEmail(email);
+    // Firebase Auth REST API endpoint
+    const authEndpoint = useEmulator
+      ? `http://127.0.0.1:9099/identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${apiKey}`
+      : `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${apiKey}`;
     
-    // Fetch user document from Firestore
-    const userDoc = await adminDb.collection('users').doc(userRecord.uid).get();
+    // Verify password using Firebase Auth REST API
+    const authResponse = await fetch(authEndpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        email,
+        password,
+        returnSecureToken: true,
+      }),
+    });
+    
+    if (!authResponse.ok) {
+      const errorData = await authResponse.json();
+      console.error('Firebase Auth error:', errorData);
+      return null;
+    }
+    
+    const authData = await authResponse.json();
+    const uid = authData.localId;
+    
+    // Fetch user data from Firestore using Admin SDK
+    const adminDb = getAdminDb();
+    if (!adminDb) {
+      console.error('Firebase Admin DB not initialized');
+      return null;
+    }
+    
+    const userDoc = await adminDb.collection('users').doc(uid).get();
     
     if (!userDoc.exists) {
+      console.error('User document not found in Firestore');
       return null;
     }
     
@@ -65,8 +97,9 @@ export async function authenticateUser(
       displayName: userData.displayName,
       groupIds: userData.groupIds,
     };
-  } catch {
-    // User not found or authentication failed
+  } catch (error) {
+    // Invalid credentials or user not found
+    console.error('Authentication failed:', error);
     return null;
   }
 }
