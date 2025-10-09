@@ -9,6 +9,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { handleCreateUser } from '@/lib/auth/create-user-handler';
 import { getUserSession } from '@/lib/auth/session';
+import { getAllUsers } from '@/lib/handlers/users-handler';
 
 /**
  * GET /api/admin/users
@@ -42,12 +43,13 @@ export async function GET(_request: NextRequest): Promise<NextResponse> {
     );
   }
 
-  // This is a placeholder implementation
-  // In a real implementation, this would fetch users from the database
+  // Fetch all users
+  const users = await getAllUsers();
+  
   return NextResponse.json(
     {
-      users: [],
-      message: 'Users endpoint - admin access required',
+      users,
+      message: 'Users retrieved successfully',
     },
     { status: 200 }
   );
