@@ -75,8 +75,8 @@ function getAdminApp(): admin.app.App | null {
     return null;
   }
 
-  // Check if we should use emulators (development without service account)
-  const useEmulators = process.env.NODE_ENV === 'development' && 
+  // Check if we should use emulators (development or test without service account)
+  const useEmulators = (process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test') && 
                        process.env.USE_FIREBASE_EMULATORS === 'true';
 
   console.log(`[Firebase Admin Lazy] NODE_ENV: ${process.env.NODE_ENV}`);

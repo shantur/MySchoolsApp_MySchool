@@ -57,7 +57,14 @@ export async function getGroupHandler(
     checkGroupAccess(session, schoolId, groupId);
   }
   
-  return service.getGroupById(groupId);
+  const group = await service.getGroupById(groupId);
+  
+  // For non-admins, verify the group belongs to their school
+  if (session!.role !== 'admin' && group && group.schoolId !== schoolId) {
+    return null;
+  }
+  
+  return group;
 }
 
 /**

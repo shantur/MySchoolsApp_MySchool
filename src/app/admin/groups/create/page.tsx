@@ -7,20 +7,25 @@
 
 'use client';
 
-import { useState, FormEvent } from 'react';
+import { useState, FormEvent, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { apiPost } from '@/lib/utils/api-client';
 
 export default function CreateGroupPage() {
   const [formData, setFormData] = useState({
-    groupId: '',
     name: '',
     schoolId: '',
     description: '',
   });
-  const [error, setError] = useState('');
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
+
+  // Set page title
+  useEffect(() => {
+    document.title = 'Create Group | Admin';
+  }, []);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -30,44 +35,49 @@ export default function CreateGroupPage() {
     }));
   };
 
+  const validateForm = () => {
+    const newErrors: Record<string, string> = {};
+    
+    if (!formData.name.trim()) {
+      newErrors.name = 'Group name is required';
+    }
+    
+    if (!formData.schoolId.trim()) {
+      newErrors.schoolId = 'School ID is required';
+    }
+    
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setError('');
 
     // Validation
-    if (!formData.groupId.trim() || !formData.name.trim() || !formData.schoolId.trim()) {
-      setError('Group ID, name, and school ID are required');
+    if (!validateForm()) {
       return;
     }
 
     setIsLoading(true);
+    setErrors({});
 
     try {
-      const response = await fetch('/api/admin/groups', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          groupId: formData.groupId,
-          name: formData.name,
-          schoolId: formData.schoolId,
-          description: formData.description || undefined,
-        }),
+      const response = await apiPost('/api/admin/groups', {
+        name: formData.name,
+        schoolId: formData.schoolId,
+        description: formData.description || undefined,
       });
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        setError(data.error || 'Failed to create group');
+      if (!response.success) {
+        setErrors({ form: response.error || 'Failed to create group' });
         setIsLoading(false);
         return;
       }
 
       // Redirect to groups list
       router.push('/admin/groups');
-    } catch {
-      setError('An error occurred. Please try again.');
+    } catch (error) {
+      setErrors({ form: 'An error occurred. Please try again.' });
       setIsLoading(false);
     }
   };
@@ -96,33 +106,7 @@ export default function CreateGroupPage() {
             aria-label="Create group form"
             className="space-y-6"
           >
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label
-                  htmlFor="groupId"
-                  className="block text-sm font-medium text-gray-700 mb-2"
-                >
-                  Group ID *
-                </label>
-                <input
-                  id="groupId"
-                  name="groupId"
-                  type="text"
-                  required
-                  value={formData.groupId}
-                  onChange={handleInputChange}
-                  data-field="group-id"
-                  aria-label="Group ID"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="grade-5a"
-                  disabled={isLoading}
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  Unique identifier for the group (lowercase, no spaces)
-                </p>
-              </div>
-
-              <div>
+            <div>
                 <label
                   htmlFor="name"
                   className="block text-sm font-medium text-gray-700 mb-2"
@@ -133,17 +117,24 @@ export default function CreateGroupPage() {
                   id="name"
                   name="name"
                   type="text"
-                  required
                   value={formData.name}
                   onChange={handleInputChange}
                   data-field="group-name"
                   aria-label="Group name"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                    errors.name ? 'border-red-500' : 'border-gray-300'
+                  }`}
                   placeholder="Grade 5A"
                   disabled={isLoading}
+                  aria-invalid={!!errors.name}
+                  aria-describedby={errors.name ? 'name-error' : undefined}
                 />
+                {errors.name && (
+                  <p id="name-error" className="mt-1 text-sm text-red-600" role="alert">
+                    {errors.name}
+                  </p>
+                )}
               </div>
-            </div>
 
             <div>
               <label
@@ -156,15 +147,23 @@ export default function CreateGroupPage() {
                 id="schoolId"
                 name="schoolId"
                 type="text"
-                required
                 value={formData.schoolId}
                 onChange={handleInputChange}
                 data-field="school-id"
                 aria-label="School ID"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                  errors.schoolId ? 'border-red-500' : 'border-gray-300'
+                }`}
                 placeholder="school-a"
                 disabled={isLoading}
+                aria-invalid={!!errors.schoolId}
+                aria-describedby={errors.schoolId ? 'schoolId-error' : undefined}
               />
+              {errors.schoolId && (
+                <p id="schoolId-error" className="mt-1 text-sm text-red-600" role="alert">
+                  {errors.schoolId}
+                </p>
+              )}
               <p className="text-xs text-gray-500 mt-1">
                 The school this group belongs to
               </p>
@@ -195,13 +194,13 @@ export default function CreateGroupPage() {
               data-error-container
               className="min-h-[24px]"
             >
-              {error && (
+              {errors.form && (
                 <div
                   data-error-message
                   className="text-red-600 text-sm"
                   role="alert"
                 >
-                  {error}
+                  {errors.form}
                 </div>
               )}
             </div>

@@ -4,102 +4,93 @@
  */
 
 import { GroupsService } from '../groups.service';
-
-// Mock Firebase Admin
-jest.mock('../../firebase/admin', () => ({
-  adminDb: {
-    collection: jest.fn(),
-  },
-}));
-
-import { adminDb } from '../../firebase/admin';
+import { getAdminDb, resetAdminInstances } from '../../firebase/admin-lazy';
+import * as admin from 'firebase-admin';
 
 describe('GroupsService', () => {
   let groupsService: GroupsService;
-  let mockCollection: any;
-  let mockDoc: any;
-  let mockGet: any;
-  let mockAdd: any;
-  let mockSet: any;
-  let mockDelete: any;
-  let mockWhere: any;
-  let mockOrderBy: any;
+  let adminDb: admin.firestore.Firestore;
 
-  beforeEach(() => {
-    jest.clearAllMocks();
+  beforeAll(async () => {
+    // Ensure Firebase is initialized for tests
+    adminDb = getAdminDb();
+    if (!adminDb) {
+      throw new Error('Firebase Admin not initialized. Ensure emulators are running.');
+    }
+  });
 
-    mockGet = jest.fn();
-    mockAdd = jest.fn();
-    mockSet = jest.fn();
-    mockDelete = jest.fn();
-    mockWhere = jest.fn();
-    mockOrderBy = jest.fn();
-
-    mockDoc = jest.fn(() => ({
-      get: mockGet,
-      set: mockSet,
-      delete: mockDelete,
-    }));
-
-    mockCollection = jest.fn(() => ({
-      doc: mockDoc,
-      add: mockAdd,
-      where: mockWhere,
-      orderBy: mockOrderBy,
-      get: mockGet,
-    }));
-
-    (adminDb.collection as jest.Mock) = mockCollection;
+  beforeEach(async () => {
+    // Reset instances for test isolation
+    resetAdminInstances();
+    adminDb = getAdminDb();
+    
+    if (!adminDb) {
+      throw new Error('Firebase Admin not available for test');
+    }
 
     groupsService = new GroupsService();
+    
+    // Clean up test data before each test
+    const testGroups = await adminDb.collection('groups').where('name', '>=', 'TEST_').get();
+    const deletePromises = testGroups.docs.map(doc => doc.ref.delete());
+    await Promise.all(deletePromises);
+  });
+
+  afterAll(async () => {
+    // Clean up any remaining test data
+    const adminDb = getAdminDb();
+    if (adminDb) {
+      const testGroups = await adminDb.collection('groups').where('name', '>=', 'TEST_').get();
+      const deletePromises = testGroups.docs.map(doc => doc.ref.delete());
+      await Promise.all(deletePromises);
+    }
   });
 
   describe('createGroup', () => {
     it('should create a new group with required fields', async () => {
       const groupData = {
         schoolId: 'school123',
-        name: 'Grade 5A',
+        name: 'TEST_Grade 5A',
         description: 'Fifth grade class A',
       };
 
-      const mockDocRef = { id: 'group123' };
-      mockAdd.mockResolvedValue(mockDocRef);
-
       const result = await groupsService.createGroup(groupData);
 
-      expect(mockCollection).toHaveBeenCalledWith('groups');
-      expect(mockAdd).toHaveBeenCalled();
-
-      const addedData = mockAdd.mock.calls[0][0];
-      expect(addedData.schoolId).toBe(groupData.schoolId);
-      expect(addedData.name).toBe(groupData.name);
-      expect(addedData.description).toBe(groupData.description);
-      expect(addedData.createdAt).toBeDefined();
-      expect(addedData.updatedAt).toBeDefined();
-
-      expect(result.groupId).toBe('group123');
+      expect(result.groupId).toBeDefined();
       expect(result.name).toBe(groupData.name);
+      expect(result.schoolId).toBe(groupData.schoolId);
+      expect(result.description).toBe(groupData.description);
+      expect(result.createdAt).toBeDefined();
+      expect(result.updatedAt).toBeDefined();
+
+      // Verify the group was actually created in Firestore
+      const doc = await adminDb.collection('groups').doc(result.groupId).get();
+      expect(doc.exists).toBe(true);
+      expect(doc.data()?.name).toBe(groupData.name);
     });
 
     it('should create group without optional description', async () => {
       const groupData = {
         schoolId: 'school123',
-        name: 'Grade 5A',
+        name: 'TEST_Grade 5B',
       };
-
-      const mockDocRef = { id: 'group456' };
-      mockAdd.mockResolvedValue(mockDocRef);
 
       const result = await groupsService.createGroup(groupData);
 
-      expect(result.groupId).toBe('group456');
+      expect(result.groupId).toBeDefined();
+      expect(result.name).toBe(groupData.name);
       expect(result.description).toBeUndefined();
+
+      // Verify the group was actually created in Firestore
+      const doc = await adminDb.collection('groups').doc(result.groupId).get();
+      expect(doc.exists).toBe(true);
+      expect(doc.data()?.description).toBeUndefined();
     });
 
     it('should throw error if schoolId is missing', async () => {
       const groupData = {
         schoolId: '',
-        name: 'Grade 5A',
+        name: 'TEST_Grade 5C',
       };
 
       await expect(
@@ -121,39 +112,27 @@ describe('GroupsService', () => {
 
   describe('getGroupById', () => {
     it('should return group by ID', async () => {
-      const mockGroupData = {
+      // First create a group to retrieve
+      const groupData = {
         schoolId: 'school123',
-        name: 'Grade 5A',
+        name: 'TEST_Grade 5A',
         description: 'Fifth grade class A',
-        createdAt: { toDate: () => new Date() },
-        updatedAt: { toDate: () => new Date() },
       };
 
-      const mockSnapshot = {
-        exists: true,
-        id: 'group123',
-        data: () => mockGroupData,
-      };
+      const createdGroup = await groupsService.createGroup(groupData);
 
-      mockGet.mockResolvedValue(mockSnapshot);
+      // Now retrieve the group
+      const result = await groupsService.getGroupById(createdGroup.groupId);
 
-      const result = await groupsService.getGroupById('group123');
-
-      expect(mockCollection).toHaveBeenCalledWith('groups');
-      expect(mockDoc).toHaveBeenCalledWith('group123');
       expect(result).toBeDefined();
-      expect(result?.groupId).toBe('group123');
-      expect(result?.name).toBe('Grade 5A');
+      expect(result?.groupId).toBe(createdGroup.groupId);
+      expect(result?.name).toBe(groupData.name);
+      expect(result?.schoolId).toBe(groupData.schoolId);
+      expect(result?.description).toBe(groupData.description);
     });
 
     it('should return null for non-existent group', async () => {
-      const mockSnapshot = {
-        exists: false,
-      };
-
-      mockGet.mockResolvedValue(mockSnapshot);
-
-      const result = await groupsService.getGroupById('nonexistent');
+      const result = await groupsService.getGroupById('nonexistent-group-id');
 
       expect(result).toBeNull();
     });
@@ -161,154 +140,130 @@ describe('GroupsService', () => {
 
   describe('updateGroup', () => {
     it('should update group fields', async () => {
+      // First create a group to update
+      const groupData = {
+        schoolId: 'school123',
+        name: 'TEST_Grade 5A',
+        description: 'Original description',
+      };
+
+      const createdGroup = await groupsService.createGroup(groupData);
+
+      // Now update the group
       const updates = {
         name: 'Updated Group Name',
         description: 'Updated description',
       };
 
-      const mockSnapshotBefore = {
-        exists: true,
-        id: 'group123',
-        data: () => ({
-          schoolId: 'school123',
-          name: 'Old Name',
-          createdAt: { toDate: () => new Date() },
-          updatedAt: { toDate: () => new Date() },
-        }),
-      };
+      const result = await groupsService.updateGroup(createdGroup.groupId, updates);
 
-      const mockSnapshotAfter = {
-        exists: true,
-        id: 'group123',
-        data: () => ({
-          schoolId: 'school123',
-          name: 'Updated Group Name',
-          description: 'Updated description',
-          createdAt: { toDate: () => new Date() },
-          updatedAt: { toDate: () => new Date() },
-        }),
-      };
-
-      mockGet
-        .mockResolvedValueOnce(mockSnapshotBefore)
-        .mockResolvedValueOnce(mockSnapshotAfter);
-
-      const result = await groupsService.updateGroup('group123', updates);
-
-      expect(mockDoc).toHaveBeenCalledWith('group123');
-      expect(mockSet).toHaveBeenCalled();
+      expect(result.groupId).toBe(createdGroup.groupId);
       expect(result.name).toBe(updates.name);
+      expect(result.description).toBe(updates.description);
+
+      // Verify the group was actually updated in Firestore
+      const doc = await adminDb.collection('groups').doc(createdGroup.groupId).get();
+      expect(doc.exists).toBe(true);
+      expect(doc.data()?.name).toBe(updates.name);
+      expect(doc.data()?.description).toBe(updates.description);
     });
 
     it('should throw error for non-existent group', async () => {
-      const mockSnapshot = {
-        exists: false,
-      };
-
-      mockGet.mockResolvedValue(mockSnapshot);
-
       await expect(
-        groupsService.updateGroup('nonexistent', { name: 'New Name' })
+        groupsService.updateGroup('nonexistent-group-id', { name: 'New Name' })
       ).rejects.toThrow('Group not found');
     });
   });
 
   describe('deleteGroup', () => {
     it('should delete group successfully', async () => {
-      const mockSnapshot = {
-        exists: true,
-        id: 'group123',
-        data: () => ({
-          schoolId: 'school123',
-          name: 'Grade 5A',
-          createdAt: { toDate: () => new Date() },
-          updatedAt: { toDate: () => new Date() },
-        }),
+      // First create a group to delete
+      const groupData = {
+        schoolId: 'school123',
+        name: 'TEST_Grade 5A',
+        description: 'To be deleted',
       };
 
-      mockGet.mockResolvedValue(mockSnapshot);
-      mockDelete.mockResolvedValue(undefined);
+      const createdGroup = await groupsService.createGroup(groupData);
 
-      await groupsService.deleteGroup('group123');
+      // Verify the group exists before deletion
+      const docBefore = await adminDb.collection('groups').doc(createdGroup.groupId).get();
+      expect(docBefore.exists).toBe(true);
 
-      expect(mockDoc).toHaveBeenCalledWith('group123');
-      expect(mockDelete).toHaveBeenCalled();
+      // Delete the group
+      await groupsService.deleteGroup(createdGroup.groupId);
+
+      // Verify the group was actually deleted from Firestore
+      const docAfter = await adminDb.collection('groups').doc(createdGroup.groupId).get();
+      expect(docAfter.exists).toBe(false);
     });
 
     it('should throw error for non-existent group', async () => {
-      const mockSnapshot = {
-        exists: false,
-      };
-
-      mockGet.mockResolvedValue(mockSnapshot);
-
       await expect(
-        groupsService.deleteGroup('nonexistent')
+        groupsService.deleteGroup('nonexistent-group-id')
       ).rejects.toThrow('Group not found');
     });
   });
 
   describe('listGroupsBySchool', () => {
     it('should return groups for a specific school', async () => {
-      const mockGroups = [
-        {
-          id: 'group1',
-          data: () => ({
-            schoolId: 'school123',
-            name: 'Grade 5A',
-            createdAt: { toDate: () => new Date() },
-            updatedAt: { toDate: () => new Date() },
-          }),
-        },
-        {
-          id: 'group2',
-          data: () => ({
-            schoolId: 'school123',
-            name: 'Grade 5B',
-            createdAt: { toDate: () => new Date() },
-            updatedAt: { toDate: () => new Date() },
-          }),
-        },
-      ];
+      // Create test groups for the school
+      const group1Data = {
+        schoolId: 'school123',
+        name: 'TEST_Grade 5A',
+        description: 'First test group',
+      };
 
-      mockWhere.mockReturnValue({
-        orderBy: mockOrderBy,
-      });
+      const group2Data = {
+        schoolId: 'school123',
+        name: 'TEST_Grade 5B',
+        description: 'Second test group',
+      };
 
-      mockOrderBy.mockReturnValue({
-        get: mockGet,
-      });
-
-      mockGet.mockResolvedValue({
-        docs: mockGroups,
-      });
+      await groupsService.createGroup(group1Data);
+      await groupsService.createGroup(group2Data);
 
       const result = await groupsService.listGroupsBySchool('school123');
 
-      expect(mockCollection).toHaveBeenCalledWith('groups');
-      expect(mockWhere).toHaveBeenCalledWith('schoolId', '==', 'school123');
-      expect(mockOrderBy).toHaveBeenCalledWith('name', 'asc');
       expect(result).toHaveLength(2);
-      expect(result[0].groupId).toBe('group1');
-      expect(result[1].groupId).toBe('group2');
+      expect(result.some(g => g.name === 'TEST_Grade 5A')).toBe(true);
+      expect(result.some(g => g.name === 'TEST_Grade 5B')).toBe(true);
+      expect(result.every(g => g.schoolId === 'school123')).toBe(true);
     });
 
     it('should return empty array when no groups exist', async () => {
-      mockWhere.mockReturnValue({
-        orderBy: mockOrderBy,
-      });
+      const result = await groupsService.listGroupsBySchool('nonexistent-school');
 
-      mockOrderBy.mockReturnValue({
-        get: mockGet,
-      });
+      expect(result).toEqual([]);
+    });
 
-      mockGet.mockResolvedValue({
-        docs: [],
-      });
+    it('should return groups in alphabetical order', async () => {
+      // Create groups in reverse alphabetical order
+      const groupZData = {
+        schoolId: 'school123',
+        name: 'TEST_Zebra Group',
+        description: 'Last alphabetically',
+      };
+
+      const groupAData = {
+        schoolId: 'school123',
+        name: 'TEST_Alpha Group',
+        description: 'First alphabetically',
+      };
+
+      await groupsService.createGroup(groupZData);
+      await groupsService.createGroup(groupAData);
 
       const result = await groupsService.listGroupsBySchool('school123');
 
-      expect(result).toEqual([]);
+      // Filter for our test groups
+      const testGroups = result.filter(g => g.name.startsWith('TEST_'));
+      expect(testGroups.length).toBeGreaterThan(0);
+      
+      // Check that they are in alphabetical order
+      const sortedNames = testGroups.map(g => g.name).sort();
+      const actualNames = testGroups.map(g => g.name);
+      expect(actualNames).toEqual(sortedNames);
     });
   });
 });

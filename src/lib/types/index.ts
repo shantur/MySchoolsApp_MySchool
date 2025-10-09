@@ -21,6 +21,7 @@ export interface School {
   name: string;
   address?: string;
   contactEmail?: string;
+  contactPhone?: string;
   createdAt: FirestoreTimestamp;
   updatedAt: FirestoreTimestamp;
 }

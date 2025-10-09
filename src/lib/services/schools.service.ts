@@ -25,6 +25,7 @@ export interface CreateSchoolInput {
   name: string;
   address?: string;
   contactEmail?: string;
+  contactPhone?: string;
 }
 
 /**
@@ -34,6 +35,7 @@ export interface UpdateSchoolInput {
   name?: string;
   address?: string;
   contactEmail?: string;
+  contactPhone?: string;
 }
 
 /**
@@ -60,6 +62,9 @@ export class SchoolsService {
       ...(input.address && { address: input.address.trim() }),
       ...(input.contactEmail && { 
         contactEmail: input.contactEmail.trim() 
+      }),
+      ...(input.contactPhone && { 
+        contactPhone: input.contactPhone.trim() 
       }),
       createdAt: now,
       updatedAt: now,

@@ -8,6 +8,7 @@
 'use client';
 
 import { useState } from 'react';
+import { apiDelete } from '@/lib/utils/api-client';
 
 interface GroupActionsProps {
   groupId: string;
@@ -19,18 +20,32 @@ export default function GroupActions({ groupId, groupName, onDelete }: GroupActi
   const [isDeleting, setIsDeleting] = useState(false);
 
   const handleDelete = async () => {
-    if (confirm(`Are you sure you want to delete ${groupName}?`)) {
+    if (confirm(`Are you sure you want to delete ${groupName}? This action cannot be undone.`)) {
       setIsDeleting(true);
       try {
-        // TODO: Implement actual delete functionality
-        console.log('Delete group:', groupId);
-        
-        // Call the onDelete callback if provided
+        console.log(`Attempting to delete group: ${groupId}`);
+        const response = await apiDelete(`/api/admin/groups/${groupId}`);
+        console.log('Delete response:', response);
+
+        if (!response.success) {
+          throw new Error(response.error || 'Failed to delete group');
+        }
+
+        console.log('Group deleted successfully, calling callback');
+        // Call the onDelete callback if provided to refresh the list
         if (onDelete) {
           onDelete(groupId);
         }
+        
+        console.log('Setting up redirect');
+        // Always redirect to ensure fresh data after deletion
+        setTimeout(() => {
+          console.log('Redirecting to groups page');
+          window.location.href = '/admin/groups';
+        }, 500);
       } catch (error) {
         console.error('Error deleting group:', error);
+        alert(error instanceof Error ? error.message : 'An error occurred while deleting the group');
       } finally {
         setIsDeleting(false);
       }

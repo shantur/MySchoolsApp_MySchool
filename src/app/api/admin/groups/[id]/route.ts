@@ -65,22 +65,8 @@ export async function GET(
       );
     }
 
-    // Parse query parameters for schoolId
-    const { searchParams } = new URL(request.url);
-    const schoolId = searchParams.get('schoolId');
-
-    if (!schoolId) {
-      return NextResponse.json(
-        {
-          error: 'School ID is required',
-          code: 'MISSING_REQUIRED_FIELDS',
-        },
-        { status: 400 }
-      );
-    }
-
-    // Handle group retrieval
-    const group = await getGroupHandler(session, id, schoolId);
+    // Handle group retrieval - for admins, we can get any group directly
+    const group = await getGroupHandler(session, id, '');
 
     if (!group) {
       return NextResponse.json(
