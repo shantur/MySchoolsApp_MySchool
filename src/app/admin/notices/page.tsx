@@ -8,6 +8,7 @@
 import { getUserSession } from '@/lib/auth/session';
 import { getAllNotices } from '@/lib/handlers/notices-handler';
 import Link from 'next/link';
+import NoticeActions from '@/components/admin/NoticeActions';
 
 export const dynamic = 'force-dynamic';
 
@@ -185,12 +186,10 @@ export default async function AdminNoticesPage() {
                             >
                               Edit
                             </Link>
-                            <button
-                              className="text-red-600 hover:text-red-900"
-                              data-notice-action="delete"
-                            >
-                              Delete
-                            </button>
+                            <NoticeActions
+                              noticeId={notice.noticeId}
+                              noticeTitle={notice.title}
+                            />
                           </div>
                         </td>
                       </tr>

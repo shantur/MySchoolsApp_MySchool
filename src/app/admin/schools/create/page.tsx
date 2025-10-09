@@ -38,8 +38,8 @@ export default function CreateSchoolPage() {
     setError('');
 
     // Validation
-    if (!formData.schoolId.trim() || !formData.name.trim() || !formData.address.trim() || !formData.contactEmail.trim()) {
-      setError('School ID, name, address, and contact email are required');
+    if (!formData.name.trim() || !formData.address.trim() || !formData.contactEmail.trim()) {
+      setError('Name, address, and contact email are required');
       return;
     }
 
@@ -59,13 +59,11 @@ export default function CreateSchoolPage() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          schoolId: formData.schoolId,
+          ...(formData.schoolId.trim() && { schoolId: formData.schoolId.trim() }),
           name: formData.name,
           address: formData.address,
           contactEmail: formData.contactEmail,
-          phone: formData.phone || undefined,
-          website: formData.website || undefined,
-          description: formData.description || undefined,
+          contactPhone: formData.phone || undefined,
         }),
       });
 
@@ -115,23 +113,22 @@ export default function CreateSchoolPage() {
                   htmlFor="schoolId"
                   className="block text-sm font-medium text-gray-700 mb-2"
                 >
-                  School ID *
+                  School ID <span className="text-gray-400">(optional)</span>
                 </label>
                 <input
                   id="schoolId"
                   name="schoolId"
                   type="text"
-                  required
                   value={formData.schoolId}
                   onChange={handleInputChange}
                   data-field="school-id"
                   aria-label="School ID"
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="school-a"
+                  placeholder="my-school-123"
                   disabled={isLoading}
                 />
                 <p className="text-xs text-gray-500 mt-1">
-                  Unique identifier for the school (lowercase, no spaces)
+                  Custom identifier (3-50 chars, alphanumeric with hyphens). Auto-generated if not provided.
                 </p>
               </div>
 

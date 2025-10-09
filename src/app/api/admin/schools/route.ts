@@ -103,7 +103,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     // Parse request body
     const body = await request.json();
-    const { name, address, contactEmail, contactPhone } = body;
+    const { schoolId, name, address, contactEmail, contactPhone } = body;
 
     if (!name || !address || !contactEmail) {
       return NextResponse.json(
@@ -117,6 +117,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     // Handle school creation
     const school = await createSchoolHandler(session, {
+      schoolId, // Pass optional custom school ID
       name,
       address,
       contactEmail,

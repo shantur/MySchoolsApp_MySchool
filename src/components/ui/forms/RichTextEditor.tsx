@@ -201,10 +201,13 @@ export default function RichTextEditor({
         className="min-h-[200px] p-4 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-inset"
         style={{ 
           minHeight: '200px',
+          direction: 'ltr',
+          textAlign: 'left',
           ...(value === '' && { 
             color: '#9CA3AF' // gray-400
           })
         }}
+        dir="ltr"
         data-testid="rich-text-editor"
         data-rich-text-editor
         data-placeholder={placeholder}

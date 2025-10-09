@@ -156,7 +156,7 @@ export default async function AdminSchoolsPage() {
                           data-school-name={school.name}
                           data-school-address={school.address}
                           data-school-contact-email={school.contactEmail}
-                          data-school-phone={school.phone}
+                          data-school-phone={school.contactPhone}
                         >
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div className="text-sm font-medium text-gray-900">
@@ -180,7 +180,7 @@ export default async function AdminSchoolsPage() {
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div className="text-sm text-gray-900">
-                              {school.phone || 'N/A'}
+                              {school.contactPhone || 'N/A'}
                             </div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">

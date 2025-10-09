@@ -8,6 +8,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 
 interface SchoolActionsProps {
   schoolId: string;
@@ -17,20 +18,31 @@ interface SchoolActionsProps {
 
 export default function SchoolActions({ schoolId, schoolName, onDelete }: SchoolActionsProps) {
   const [isDeleting, setIsDeleting] = useState(false);
+  const router = useRouter();
 
   const handleDelete = async () => {
-    if (confirm(`Are you sure you want to delete ${schoolName}?`)) {
+    if (confirm(`Are you sure you want to delete "${schoolName}"? This action cannot be undone.`)) {
       setIsDeleting(true);
       try {
-        // TODO: Implement actual delete functionality
-        console.log('Delete school:', schoolId);
-        
+        const response = await fetch(`/api/admin/schools/${schoolId}`, {
+          method: 'DELETE',
+        });
+
+        if (!response.ok) {
+          const data = await response.json();
+          throw new Error(data.error || 'Failed to delete school');
+        }
+
         // Call the onDelete callback if provided
         if (onDelete) {
           onDelete(schoolId);
         }
+
+        // Refresh the page to show updated list
+        router.refresh();
       } catch (error) {
         console.error('Error deleting school:', error);
+        alert(error instanceof Error ? error.message : 'Failed to delete school');
       } finally {
         setIsDeleting(false);
       }

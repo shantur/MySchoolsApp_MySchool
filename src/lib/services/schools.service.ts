@@ -22,6 +22,7 @@ const getDb = () => {
  * Input type for creating a new school
  */
 export interface CreateSchoolInput {
+  schoolId?: string; // Optional custom school ID
   name: string;
   address?: string;
   contactEmail?: string;
@@ -48,12 +49,36 @@ export class SchoolsService {
    * Create a new school
    * 
    * @param {CreateSchoolInput} input - School creation data
-   * @return {Promise<School>} Created school with generated ID
+   * @return {Promise<School>} Created school with generated ID or custom ID
    */
   async createSchool(input: CreateSchoolInput): Promise<School> {
     // Validate required fields
     if (!input.name || input.name.trim().length === 0) {
       throw new Error('School name is required');
+    }
+
+    // Validate custom school ID if provided
+    if (input.schoolId) {
+      const trimmedId = input.schoolId.trim();
+      
+      // Validate format (alphanumeric, hyphens, 3-50 chars)
+      const idRegex = /^[a-zA-Z0-9-]{3,50}$/;
+      if (!idRegex.test(trimmedId)) {
+        throw new Error(
+          'School ID must be 3-50 characters, alphanumeric with hyphens allowed'
+        );
+      }
+
+      // Check uniqueness
+      const db = getDb();
+      const existingDoc = await db
+        .collection(this.collection)
+        .doc(trimmedId)
+        .get();
+      
+      if (existingDoc.exists) {
+        throw new Error('School ID already exists');
+      }
     }
 
     const now = Timestamp.now();
@@ -71,10 +96,22 @@ export class SchoolsService {
     };
 
     const db = getDb();
-    const docRef = await db.collection(this.collection).add(schoolData);
+    
+    // Use custom ID if provided, otherwise auto-generate
+    let docRef;
+    let schoolId: string;
+    
+    if (input.schoolId) {
+      schoolId = input.schoolId.trim();
+      docRef = db.collection(this.collection).doc(schoolId);
+      await docRef.set(schoolData);
+    } else {
+      docRef = await db.collection(this.collection).add(schoolData);
+      schoolId = docRef.id;
+    }
 
     return {
-      schoolId: docRef.id,
+      schoolId,
       ...schoolData,
     };
   }

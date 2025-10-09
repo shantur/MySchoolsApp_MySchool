@@ -50,7 +50,13 @@ export default function AdminGroupsClientPage() {
 
         // For now, we'll use a mock schools map since we don't have a schools endpoint
         const mockSchools: School[] = [
-          { schoolId: 'test-school-123', name: 'Test School', address: '123 Test St' }
+          { 
+            schoolId: 'test-school-123', 
+            name: 'Test School', 
+            address: '123 Test St',
+            createdAt: new Date() as any,
+            updatedAt: new Date() as any
+          }
         ];
         
         setSchools(mockSchools);

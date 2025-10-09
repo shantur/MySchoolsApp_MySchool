@@ -247,7 +247,7 @@ export default function AdminUsersClientPage() {
               Confirm Delete User
             </h3>
             <p className="text-gray-600 mb-6">
-              Are you sure you want to delete the user "{deleteConfirm.email}"? 
+              Are you sure you want to delete the user &quot;{deleteConfirm.email}&quot;? 
               This action cannot be undone.
             </p>
             <div className="flex gap-4 justify-end">
