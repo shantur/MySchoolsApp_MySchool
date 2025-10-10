@@ -78,11 +78,16 @@ export async function uploadFile(
     const projectId = 'myschools-app-dev';
     const encodedPath = encodeURIComponent(filePath);
     
+    // Use configurable host for emulator URLs
+    // Default to 10.0.2.2 for Android emulators (can override with NEXT_PUBLIC_STORAGE_EMULATOR_HOST)
+    // Note: FIREBASE_STORAGE_EMULATOR_HOST is used by Firebase SDK internally, so we use a different var
+    const emulatorHost = process.env.NEXT_PUBLIC_STORAGE_EMULATOR_HOST || '10.0.2.2:9199';
+    
     if (downloadToken) {
-      return `http://127.0.0.1:9199/v0/b/${projectId}.appspot.com/o/${encodedPath}?alt=media&token=${downloadToken}`;
+      return `http://${emulatorHost}/v0/b/${projectId}.appspot.com/o/${encodedPath}?alt=media&token=${downloadToken}`;
     } else {
       // Fallback without token (will require auth)
-      return `http://127.0.0.1:9199/v0/b/${projectId}.appspot.com/o/${encodedPath}?alt=media`;
+      return `http://${emulatorHost}/v0/b/${projectId}.appspot.com/o/${encodedPath}?alt=media`;
     }
   } else {
     // Production: Generate signed URL with 1-year expiration
@@ -114,12 +119,13 @@ export async function deleteFile(downloadURL: string): Promise<boolean> {
 
   try {
     // Extract file path from URL
-    // Emulator URL format: http://127.0.0.1:9199/v0/b/{bucket}/o/{encodedPath}?alt=media
+    // Emulator URL format: http://127.0.0.1:9199/v0/b/{bucket}/o/{encodedPath}?alt=media (web)
+    //                   or: http://10.0.2.2:9199/v0/b/{bucket}/o/{encodedPath}?alt=media (Android emulator)
     // Production URL format: Various signed URL formats
     
     let filePath: string | null = null;
     
-    if (downloadURL.includes('127.0.0.1:9199')) {
+    if (downloadURL.includes('127.0.0.1:9199') || downloadURL.includes('10.0.2.2:9199')) {
       // Emulator URL
       const match = downloadURL.match(/\/o\/([^?]+)/);
       if (match) {
