@@ -122,8 +122,8 @@ export default function AttachmentUpload({
     if (newAttachments.length === 0) return;
 
     // Add attachments with "uploading" status
-    const updatedAttachments = [...attachments, ...newAttachments];
-    onChange(updatedAttachments);
+    let currentAttachments = [...attachments, ...newAttachments];
+    onChange(currentAttachments);
 
     // Upload each file
     for (const attachment of newAttachments) {
@@ -149,7 +149,7 @@ export default function AttachmentUpload({
         setUploadProgress(prev => ({ ...prev, [attachment.id]: 100 }));
 
         // Update attachment with download URL
-        const updatedAttachments = attachments.map(att => {
+        currentAttachments = currentAttachments.map(att => {
           if (att.id === attachment.id) {
             const updated: Attachment = { 
               ...att, 
@@ -161,7 +161,7 @@ export default function AttachmentUpload({
           }
           return att;
         });
-        onChange(updatedAttachments);
+        onChange(currentAttachments);
 
         // Clear progress after a delay
         setTimeout(() => {
@@ -173,7 +173,7 @@ export default function AttachmentUpload({
         }, 1000);
       } catch (error) {
         // Update attachment with error
-        const updatedAttachments = attachments.map(att =>
+        currentAttachments = currentAttachments.map(att =>
           att.id === attachment.id
             ? {
                 ...att,
@@ -182,7 +182,7 @@ export default function AttachmentUpload({
               }
             : att
         );
-        onChange(updatedAttachments);
+        onChange(currentAttachments);
 
         // Clear progress
         setUploadProgress(prev => {
