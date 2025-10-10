@@ -7,6 +7,7 @@
 
 import { getAdminDb } from '../firebase/admin-lazy';
 import type { NoticeRead } from '../types';
+import { FieldValue } from 'firebase-admin/firestore';
 
 /**
  * Mark a notice as read by a user
@@ -37,7 +38,7 @@ export async function markNoticeAsRead(
     noticeId,
     schoolId,
     groupId,
-    readAt: require('firebase-admin').firestore.FieldValue.serverTimestamp(),
+    readAt: FieldValue.serverTimestamp(),
   };
 
   await db.collection('noticeReads').doc(readDocId).set(noticeReadData, { merge: true });

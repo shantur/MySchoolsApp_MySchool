@@ -18,6 +18,7 @@ interface SerializedNotice {
   body: string;
   status: 'draft' | 'published' | 'archived';
   publicationDate: string; // ISO string
+  senderName?: string;
   attachments?: Array<{
     id: string;
     fileName: string;
@@ -78,16 +79,26 @@ export default function NoticeListItem({
           </p>
           
           <div className="flex justify-between items-center text-sm">
-            <span
-              className="notice-date text-gray-500"
-              data-notice-publication-date={notice.publicationDate}
-            >
-              {new Date(notice.publicationDate).toLocaleDateString('en-US', {
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric',
-              })}
-            </span>
+            <div className="flex flex-col gap-1">
+              {notice.senderName && (
+                <span
+                  className="text-gray-600"
+                  data-notice-sender-name
+                >
+                  From: {notice.senderName}
+                </span>
+              )}
+              <span
+                className="notice-date text-gray-500"
+                data-notice-publication-date={notice.publicationDate}
+              >
+                {new Date(notice.publicationDate).toLocaleDateString('en-US', {
+                  year: 'numeric',
+                  month: 'long',
+                  day: 'numeric',
+                })}
+              </span>
+            </div>
             
             <div className="flex items-center gap-4">
               {notice.attachments && notice.attachments.length > 0 && (

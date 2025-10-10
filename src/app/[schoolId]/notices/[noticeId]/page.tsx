@@ -131,6 +131,14 @@ export default async function NoticeDetailPage({
             </h1>
             
             <div className="text-sm text-gray-500 mb-6">
+              {notice.senderName && (
+                <div className="mb-2">
+                  <span className="font-semibold text-gray-700">From: </span>
+                  <span data-notice-sender-name>
+                    {notice.senderName}
+                  </span>
+                </div>
+              )}
               <span
                 data-notice-publication-date={
                   notice.publicationDate.toDate().toISOString()

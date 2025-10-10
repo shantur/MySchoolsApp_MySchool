@@ -27,6 +27,7 @@ export interface CreateNoticeInput {
   body: string;
   status?: 'draft' | 'published' | 'archived';
   attachments?: Attachment[];
+  senderName?: string;  // Display name of notice creator
 }
 
 /**
@@ -89,6 +90,7 @@ export class NoticesService {
       status: input.status || 'draft',
       publicationDate: now,
       ...(input.attachments && { attachments: input.attachments }),
+      ...(input.senderName && { senderName: input.senderName }),
       createdAt: now,
       updatedAt: now,
     };

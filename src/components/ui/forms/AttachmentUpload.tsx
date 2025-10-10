@@ -149,13 +149,19 @@ export default function AttachmentUpload({
         setUploadProgress(prev => ({ ...prev, [attachment.id]: 100 }));
 
         // Update attachment with download URL
-        onChange(prevAttachments =>
-          prevAttachments.map(att =>
-            att.id === attachment.id
-              ? { ...att, downloadURL, uploading: false, file: undefined }
-              : att
-          )
-        );
+        const updatedAttachments = attachments.map(att => {
+          if (att.id === attachment.id) {
+            const updated: Attachment = { 
+              ...att, 
+              downloadURL: downloadURL || undefined, 
+              uploading: false 
+            };
+            delete updated.file;
+            return updated;
+          }
+          return att;
+        });
+        onChange(updatedAttachments);
 
         // Clear progress after a delay
         setTimeout(() => {
@@ -167,17 +173,16 @@ export default function AttachmentUpload({
         }, 1000);
       } catch (error) {
         // Update attachment with error
-        onChange(prevAttachments =>
-          prevAttachments.map(att =>
-            att.id === attachment.id
-              ? {
-                  ...att,
-                  uploading: false,
-                  uploadError: error instanceof Error ? error.message : 'Upload failed',
-                }
-              : att
-          )
+        const updatedAttachments = attachments.map(att =>
+          att.id === attachment.id
+            ? {
+                ...att,
+                uploading: false,
+                uploadError: error instanceof Error ? error.message : 'Upload failed',
+              }
+            : att
         );
+        onChange(updatedAttachments);
 
         // Clear progress
         setUploadProgress(prev => {

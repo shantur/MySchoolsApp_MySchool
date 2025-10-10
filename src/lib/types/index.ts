@@ -76,6 +76,7 @@ export interface Notice {
   publicationDate: FirestoreTimestamp;
   status: 'draft' | 'published' | 'archived';
   attachments?: Attachment[];
+  senderName?: string;  // Display name of notice creator
   createdAt: FirestoreTimestamp;
   updatedAt: FirestoreTimestamp;
 }

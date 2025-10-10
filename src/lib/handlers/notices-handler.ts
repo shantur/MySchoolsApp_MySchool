@@ -32,7 +32,14 @@ export async function createNoticeHandler(
 ): Promise<{success: boolean, notice?: Notice, error?: {message: string, code: string}}> {
   try {
     requireAdmin(session);
-    const notice = await service.createNotice(data);
+    
+    // Add sender information from session
+    const noticeData: CreateNoticeInput = {
+      ...data,
+      senderName: session?.displayName || session?.email || 'Unknown',
+    };
+    
+    const notice = await service.createNotice(noticeData);
     return { success: true, notice };
   } catch (error) {
     return {

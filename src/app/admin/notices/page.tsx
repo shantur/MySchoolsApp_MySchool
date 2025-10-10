@@ -123,6 +123,12 @@ export default async function AdminNoticesPage() {
                         scope="col"
                         className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                       >
+                        Sender
+                      </th>
+                      <th
+                        scope="col"
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                      >
                         Status
                       </th>
                       <th
@@ -159,6 +165,9 @@ export default async function AdminNoticesPage() {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                           {notice.schoolId}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                          {notice.senderName || '-'}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <span
