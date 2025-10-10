@@ -70,7 +70,8 @@ Thumbs.db
 evidences/
 dev-server.log
 playwright-report/
-test-results/# Temporary test and debug files
+# Temporary test and debug files
+test-results/
 create-test-*.js
 create-test-*.ts
 debug-*.js
