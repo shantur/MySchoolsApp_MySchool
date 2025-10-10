@@ -6,13 +6,11 @@
 import { SchoolsService } from '../schools.service';
 
 // Mock Firebase Admin
-jest.mock('../../firebase/admin', () => ({
-  adminDb: {
-    collection: jest.fn(),
-  },
+jest.mock('../../firebase/admin-lazy', () => ({
+  getAdminDb: jest.fn(),
 }));
 
-import { adminDb } from '../../firebase/admin';
+import { getAdminDb } from '../../firebase/admin-lazy';
 
 describe('SchoolsService', () => {
   let schoolsService: SchoolsService;
@@ -34,8 +32,8 @@ describe('SchoolsService', () => {
     mockAdd = jest.fn();
     mockSet = jest.fn();
     mockDelete = jest.fn();
-    mockWhere = jest.fn();
-    mockOrderBy = jest.fn();
+    mockWhere = jest.fn().mockReturnThis();
+    mockOrderBy = jest.fn().mockReturnThis();
 
     mockDoc = jest.fn(() => ({
       get: mockGet,
@@ -48,10 +46,13 @@ describe('SchoolsService', () => {
       add: mockAdd,
       where: mockWhere,
       orderBy: mockOrderBy,
+      limit: jest.fn().mockReturnThis(),
       get: mockGet,
     }));
 
-    (adminDb.collection as jest.Mock) = mockCollection;
+    (getAdminDb as jest.Mock).mockReturnValue({
+      collection: mockCollection,
+    });
 
     schoolsService = new SchoolsService();
   });
@@ -225,7 +226,15 @@ describe('SchoolsService', () => {
         }),
       };
 
-      mockGet.mockResolvedValue(mockSnapshot);
+      // Mock school exists check
+      mockGet.mockResolvedValueOnce(mockSnapshot);
+      
+      // Mock dependency checks (users, groups, notices) - all empty
+      mockGet
+        .mockResolvedValueOnce({ empty: true, docs: [] }) // users check
+        .mockResolvedValueOnce({ empty: true, docs: [] }) // groups check
+        .mockResolvedValueOnce({ empty: true, docs: [] }); // notices check
+
       mockDelete.mockResolvedValue(undefined);
 
       await schoolsService.deleteSchool('school123');
@@ -244,6 +253,86 @@ describe('SchoolsService', () => {
       await expect(
         schoolsService.deleteSchool('nonexistent')
       ).rejects.toThrow('School not found');
+    });
+
+    it('should throw error if school has dependent users', async () => {
+      const mockSnapshot = {
+        exists: true,
+        id: 'school123',
+        data: () => ({
+          name: 'Test School',
+          createdAt: { toDate: () => new Date() },
+          updatedAt: { toDate: () => new Date() },
+        }),
+      };
+
+      // Mock school exists check
+      mockGet.mockResolvedValueOnce(mockSnapshot);
+      
+      // Mock users dependency check - has users
+      mockGet.mockResolvedValueOnce({ 
+        empty: false, 
+        docs: [{ id: 'user1' }] 
+      });
+
+      await expect(
+        schoolsService.deleteSchool('school123')
+      ).rejects.toThrow('Cannot delete school with existing users');
+    });
+
+    it('should throw error if school has dependent groups', async () => {
+      const mockSnapshot = {
+        exists: true,
+        id: 'school123',
+        data: () => ({
+          name: 'Test School',
+          createdAt: { toDate: () => new Date() },
+          updatedAt: { toDate: () => new Date() },
+        }),
+      };
+
+      // Mock school exists check
+      mockGet.mockResolvedValueOnce(mockSnapshot);
+      
+      // Mock dependencies - no users, but has groups
+      mockGet
+        .mockResolvedValueOnce({ empty: true, docs: [] }) // users check
+        .mockResolvedValueOnce({ 
+          empty: false, 
+          docs: [{ id: 'group1' }] 
+        }); // groups check
+
+      await expect(
+        schoolsService.deleteSchool('school123')
+      ).rejects.toThrow('Cannot delete school with existing groups');
+    });
+
+    it('should throw error if school has dependent notices', async () => {
+      const mockSnapshot = {
+        exists: true,
+        id: 'school123',
+        data: () => ({
+          name: 'Test School',
+          createdAt: { toDate: () => new Date() },
+          updatedAt: { toDate: () => new Date() },
+        }),
+      };
+
+      // Mock school exists check
+      mockGet.mockResolvedValueOnce(mockSnapshot);
+      
+      // Mock dependencies - no users/groups, but has notices
+      mockGet
+        .mockResolvedValueOnce({ empty: true, docs: [] }) // users check
+        .mockResolvedValueOnce({ empty: true, docs: [] }) // groups check
+        .mockResolvedValueOnce({ 
+          empty: false, 
+          docs: [{ id: 'notice1' }] 
+        }); // notices check
+
+      await expect(
+        schoolsService.deleteSchool('school123')
+      ).rejects.toThrow('Cannot delete school with existing notices');
     });
   });
 

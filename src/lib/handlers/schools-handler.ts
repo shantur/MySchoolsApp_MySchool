@@ -16,6 +16,7 @@ import {
   requireAuth,
   checkSchoolAccess,
 } from '../auth/authorization';
+import { AuditService } from '../services/audit.service';
 
 /**
  * Create a new school (Admin only)
@@ -23,17 +24,27 @@ import {
  * @param {UserSession | null} session - Current user session
  * @param {CreateSchoolInput} data - School data
  * @param {SchoolsService} service - Schools service instance
+ * @param {AuditService} auditService - Audit service instance
  * @return {Promise<School>} Created school
  */
 export async function createSchoolHandler(
   session: UserSession | null,
   data: CreateSchoolInput,
-  service: SchoolsService = new SchoolsService()
+  service: SchoolsService = new SchoolsService(),
+  auditService: AuditService = new AuditService()
 ): Promise<School> {
   // Only admins can create schools
   requireAdmin(session);
 
-  return service.createSchool(data);
+  const school = await service.createSchool(data);
+
+  // Log the creation in audit trail
+  await auditService.logSchoolCreation(
+    session!,
+    school as unknown as Record<string, unknown>
+  );
+
+  return school;
 }
 
 /**
@@ -63,18 +74,35 @@ export async function getSchoolHandler(
  * @param {string} schoolId - School ID
  * @param {UpdateSchoolInput} data - Update data
  * @param {SchoolsService} service - Schools service instance
+ * @param {AuditService} auditService - Audit service instance
  * @return {Promise<School>} Updated school
  */
 export async function updateSchoolHandler(
   session: UserSession | null,
   schoolId: string,
   data: UpdateSchoolInput,
-  service: SchoolsService = new SchoolsService()
+  service: SchoolsService = new SchoolsService(),
+  auditService: AuditService = new AuditService()
 ): Promise<School> {
   // Only admins can update schools
   requireAdmin(session);
 
-  return service.updateSchool(schoolId, data);
+  // Get before state for audit log
+  const beforeData = await service.getSchoolById(schoolId);
+
+  const school = await service.updateSchool(schoolId, data);
+
+  // Log the update in audit trail
+  if (beforeData) {
+    await auditService.logSchoolUpdate(
+      session!,
+      schoolId,
+      beforeData as unknown as Record<string, unknown>,
+      school as unknown as Record<string, unknown>
+    );
+  }
+
+  return school;
 }
 
 /**
@@ -83,17 +111,30 @@ export async function updateSchoolHandler(
  * @param {UserSession | null} session - Current user session
  * @param {string} schoolId - School ID
  * @param {SchoolsService} service - Schools service instance
+ * @param {AuditService} auditService - Audit service instance
  * @return {Promise<void>}
  */
 export async function deleteSchoolHandler(
   session: UserSession | null,
   schoolId: string,
-  service: SchoolsService = new SchoolsService()
+  service: SchoolsService = new SchoolsService(),
+  auditService: AuditService = new AuditService()
 ): Promise<void> {
   // Only admins can delete schools
   requireAdmin(session);
 
-  return service.deleteSchool(schoolId);
+  // Get school data before deletion for audit log
+  const schoolData = await service.getSchoolById(schoolId);
+
+  await service.deleteSchool(schoolId);
+
+  // Log the deletion in audit trail
+  if (schoolData) {
+    await auditService.logSchoolDeletion(
+      session!,
+      schoolData as unknown as Record<string, unknown>
+    );
+  }
 }
 
 /**

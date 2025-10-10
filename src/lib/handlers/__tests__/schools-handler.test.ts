@@ -11,12 +11,15 @@ import {
   listSchoolsHandler,
 } from '../schools-handler';
 import { SchoolsService } from '../../services/schools.service';
+import { AuditService } from '../../services/audit.service';
 import type { UserSession } from '../../types';
 
 jest.mock('../../services/schools.service');
+jest.mock('../../services/audit.service');
 
 describe('Schools Handler', () => {
   let mockSchoolsService: jest.Mocked<SchoolsService>;
+  let mockAuditService: jest.Mocked<AuditService>;
   let adminSession: UserSession;
   let userSession: UserSession;
 
@@ -24,6 +27,12 @@ describe('Schools Handler', () => {
     jest.clearAllMocks();
 
     mockSchoolsService = new SchoolsService() as any;
+    mockAuditService = new AuditService() as any;
+
+    // Mock audit service methods
+    mockAuditService.logSchoolCreation = jest.fn().mockResolvedValue('audit123');
+    mockAuditService.logSchoolUpdate = jest.fn().mockResolvedValue('audit124');
+    mockAuditService.logSchoolDeletion = jest.fn().mockResolvedValue('audit125');
 
     adminSession = {
       uid: 'admin123',
@@ -61,11 +70,16 @@ describe('Schools Handler', () => {
       const result = await createSchoolHandler(
         adminSession,
         schoolData,
-        mockSchoolsService
+        mockSchoolsService,
+        mockAuditService
       );
 
       expect(mockSchoolsService.createSchool).toHaveBeenCalledWith(
         schoolData
+      );
+      expect(mockAuditService.logSchoolCreation).toHaveBeenCalledWith(
+        adminSession,
+        createdSchool
       );
       expect(result).toEqual(createdSchool);
     });
@@ -152,6 +166,13 @@ describe('Schools Handler', () => {
         name: 'Updated School Name',
       };
 
+      const beforeData = {
+        schoolId: 'school123',
+        name: 'Old School Name',
+        createdAt: {} as any,
+        updatedAt: {} as any,
+      };
+
       const updatedSchool = {
         schoolId: 'school123',
         name: 'Updated School Name',
@@ -159,6 +180,8 @@ describe('Schools Handler', () => {
         updatedAt: {} as any,
       };
 
+      (mockSchoolsService.getSchoolById as jest.Mock)
+        .mockResolvedValue(beforeData);
       (mockSchoolsService.updateSchool as jest.Mock)
         .mockResolvedValue(updatedSchool);
 
@@ -166,12 +189,22 @@ describe('Schools Handler', () => {
         adminSession,
         'school123',
         updates,
-        mockSchoolsService
+        mockSchoolsService,
+        mockAuditService
       );
 
+      expect(mockSchoolsService.getSchoolById).toHaveBeenCalledWith(
+        'school123'
+      );
       expect(mockSchoolsService.updateSchool).toHaveBeenCalledWith(
         'school123',
         updates
+      );
+      expect(mockAuditService.logSchoolUpdate).toHaveBeenCalledWith(
+        adminSession,
+        'school123',
+        beforeData,
+        updatedSchool
       );
       expect(result).toEqual(updatedSchool);
     });
@@ -190,17 +223,34 @@ describe('Schools Handler', () => {
 
   describe('deleteSchoolHandler', () => {
     it('should delete school when admin is authenticated', async () => {
+      const schoolData = {
+        schoolId: 'school123',
+        name: 'School to Delete',
+        createdAt: {} as any,
+        updatedAt: {} as any,
+      };
+
+      (mockSchoolsService.getSchoolById as jest.Mock)
+        .mockResolvedValue(schoolData);
       (mockSchoolsService.deleteSchool as jest.Mock)
         .mockResolvedValue(undefined);
 
       await deleteSchoolHandler(
         adminSession,
         'school123',
-        mockSchoolsService
+        mockSchoolsService,
+        mockAuditService
       );
 
+      expect(mockSchoolsService.getSchoolById).toHaveBeenCalledWith(
+        'school123'
+      );
       expect(mockSchoolsService.deleteSchool).toHaveBeenCalledWith(
         'school123'
+      );
+      expect(mockAuditService.logSchoolDeletion).toHaveBeenCalledWith(
+        adminSession,
+        schoolData
       );
     });
 

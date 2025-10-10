@@ -21,6 +21,9 @@ interface Attachment {
   fileType: string;
   size: number;
   file?: File;
+  downloadURL?: string;
+  uploading?: boolean;
+  uploadError?: string;
 }
 
 export default function CreateNoticePage() {
@@ -35,6 +38,7 @@ export default function CreateNoticePage() {
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [tempNoticeId] = useState(() => `temp-${Date.now()}`); // Temporary ID for uploads
   const router = useRouter();
 
   // Fetch groups on mount
@@ -98,14 +102,32 @@ export default function CreateNoticePage() {
     setIsLoading(true);
 
     try {
-      // Prepare attachments for submission (convert File objects to Attachment metadata)
-      const attachmentMetadata = attachments.map(att => ({
-        id: att.id,
-        fileName: att.fileName,
-        fileType: att.fileType,
-        size: att.size,
-        downloadURL: '', // Will be populated after upload
-      }));
+      // Check if any attachments are still uploading
+      const uploading = attachments.some(att => att.uploading);
+      if (uploading) {
+        setError('Please wait for all attachments to finish uploading');
+        setIsLoading(false);
+        return;
+      }
+
+      // Check if any attachments have errors
+      const hasErrors = attachments.some(att => att.uploadError);
+      if (hasErrors) {
+        setError('Some attachments failed to upload. Please remove them and try again.');
+        setIsLoading(false);
+        return;
+      }
+
+      // Only include attachments that have successfully uploaded (have downloadURL)
+      const uploadedAttachments = attachments
+        .filter(att => att.downloadURL)
+        .map(att => ({
+          id: att.id,
+          fileName: att.fileName,
+          fileType: att.fileType,
+          size: att.size,
+          downloadURL: att.downloadURL!,
+        }));
 
       const response = await fetch('/api/admin/notices', {
         method: 'POST',
@@ -117,7 +139,7 @@ export default function CreateNoticePage() {
           body: formData.body,
           groupId: formData.groupId,
           status: formData.status,
-          attachments: attachmentMetadata.length > 0 ? attachmentMetadata : undefined,
+          attachments: uploadedAttachments.length > 0 ? uploadedAttachments : undefined,
         }),
       });
 
@@ -262,15 +284,25 @@ export default function CreateNoticePage() {
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Attachments
               </label>
-              <AttachmentUpload
-                attachments={attachments}
-                onChange={setAttachments}
-                disabled={isLoading}
-                maxFiles={5}
-                maxSize={10 * 1024 * 1024} // 10MB
-              />
+              {formData.groupId && selectedGroup ? (
+                <AttachmentUpload
+                  attachments={attachments}
+                  onChange={setAttachments}
+                  disabled={isLoading}
+                  maxFiles={5}
+                  maxSize={10 * 1024 * 1024} // 10MB
+                  schoolId={selectedGroup.schoolId}
+                  noticeId={tempNoticeId}
+                />
+              ) : (
+                <div className="border-2 border-dashed rounded-lg p-6 text-center bg-gray-50">
+                  <p className="text-sm text-gray-500">
+                    Please select a target group first to enable attachments.
+                  </p>
+                </div>
+              )}
               <p className="text-xs text-gray-500 mt-1">
-                Upload PDF files and images to accompany your notice.
+                Upload PDF files and images to accompany your notice. Files will be uploaded immediately.
               </p>
             </div>
 

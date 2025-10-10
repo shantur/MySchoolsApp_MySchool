@@ -81,6 +81,18 @@ export interface Notice {
 }
 
 /**
+ * Notice Read Tracking
+ * Document ID format: {userId}_{noticeId}
+ */
+export interface NoticeRead {
+  userId: string;
+  noticeId: string;
+  schoolId: string;  // For query scoping
+  groupId: string;   // For query scoping
+  readAt: FirestoreTimestamp;
+}
+
+/**
  * User session data
  */
 export interface UserSession {

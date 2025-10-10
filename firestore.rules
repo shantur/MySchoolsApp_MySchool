@@ -1,24 +1,62 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Schools collection - admin-only access
+    // Helper function to check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Helper function to check if user is admin
+    function isAdmin() {
+      return request.auth != null && request.auth.token.admin == true;
+    }
+    
+    // Schools collection - admin-only write, authenticated read
     match /schools/{schoolId} {
-      allow read, write: if request.auth.token.admin == true;
+      // Admins can do anything
+      allow read, write: if isAdmin();
+      
+      // Regular users can read their own school
+      allow read: if isAuthenticated() && 
+        request.auth.token.schoolId == schoolId;
     }
     
     // Users collection - admin-only access
     match /users/{userId} {
-      allow read, write: if request.auth.token.admin == true;
+      allow read, write: if isAdmin();
+      
+      // Users can read their own profile
+      allow read: if isAuthenticated() && request.auth.uid == userId;
     }
     
-    // Groups collection - admin-only access
+    // Groups collection - admin-only write, restricted read
     match /groups/{groupId} {
-      allow read, write: if request.auth.token.admin == true;
+      // Admins can do anything
+      allow read, write: if isAdmin();
+      
+      // Regular users can read groups in their school
+      allow read: if isAuthenticated() && 
+        resource.data.schoolId == request.auth.token.schoolId;
     }
     
-    // Notices collection - admin-only access
+    // Notices collection - admin-only write, restricted read
     match /notices/{noticeId} {
-      allow read, write: if request.auth.token.admin == true;
+      // Admins can do anything
+      allow read, write: if isAdmin();
+      
+      // Regular users can read notices for their school
+      allow read: if isAuthenticated() && 
+        resource.data.schoolId == request.auth.token.schoolId;
+    }
+    
+    // Audit logs - admin-only read access, no write access
+    // (Writes should only happen through server-side code)
+    match /audit_logs/{logId} {
+      // Only admins can read audit logs
+      allow read: if isAdmin();
+      
+      // No direct writes allowed
+      allow write: if false;
     }
   }
 }

@@ -8,6 +8,11 @@
 import { getAdminDb } from '../firebase/admin-lazy';
 import type { School } from '../types';
 import { Timestamp } from 'firebase-admin/firestore';
+import {
+  validateSchoolInput,
+  sanitizeSchoolInput,
+  ValidationError,
+} from '../validation/school-validation';
 
 // Helper function to get Firestore instance
 const getDb = () => {
@@ -17,6 +22,9 @@ const getDb = () => {
   }
   return db;
 };
+
+// Export ValidationError for use by consumers
+export { ValidationError };
 
 /**
  * Input type for creating a new school
@@ -52,44 +60,38 @@ export class SchoolsService {
    * @return {Promise<School>} Created school with generated ID or custom ID
    */
   async createSchool(input: CreateSchoolInput): Promise<School> {
-    // Validate required fields
-    if (!input.name || input.name.trim().length === 0) {
-      throw new Error('School name is required');
-    }
+    // Validate input using comprehensive validation
+    validateSchoolInput(input);
 
-    // Validate custom school ID if provided
-    if (input.schoolId) {
-      const trimmedId = input.schoolId.trim();
-      
-      // Validate format (alphanumeric, hyphens, 3-50 chars)
-      const idRegex = /^[a-zA-Z0-9-]{3,50}$/;
-      if (!idRegex.test(trimmedId)) {
-        throw new Error(
-          'School ID must be 3-50 characters, alphanumeric with hyphens allowed'
-        );
-      }
+    // Sanitize input to prevent XSS and normalize data
+    const sanitized = sanitizeSchoolInput(input);
 
-      // Check uniqueness
+    // Validate custom school ID uniqueness if provided
+    if (sanitized.schoolId) {
       const db = getDb();
       const existingDoc = await db
         .collection(this.collection)
-        .doc(trimmedId)
+        .doc(sanitized.schoolId)
         .get();
       
       if (existingDoc.exists) {
-        throw new Error('School ID already exists');
+        throw new ValidationError(
+          'School ID already exists',
+          'DUPLICATE_ID',
+          'schoolId'
+        );
       }
     }
 
     const now = Timestamp.now();
     const schoolData = {
-      name: input.name.trim(),
-      ...(input.address && { address: input.address.trim() }),
-      ...(input.contactEmail && { 
-        contactEmail: input.contactEmail.trim() 
+      name: sanitized.name,
+      ...(sanitized.address && { address: sanitized.address }),
+      ...(sanitized.contactEmail && { 
+        contactEmail: sanitized.contactEmail 
       }),
-      ...(input.contactPhone && { 
-        contactPhone: input.contactPhone.trim() 
+      ...(sanitized.contactPhone && { 
+        contactPhone: sanitized.contactPhone 
       }),
       createdAt: now,
       updatedAt: now,
@@ -101,8 +103,8 @@ export class SchoolsService {
     let docRef;
     let schoolId: string;
     
-    if (input.schoolId) {
-      schoolId = input.schoolId.trim();
+    if (sanitized.schoolId) {
+      schoolId = sanitized.schoolId;
       docRef = db.collection(this.collection).doc(schoolId);
       await docRef.set(schoolData);
     } else {
@@ -154,25 +156,56 @@ export class SchoolsService {
     // Check if school exists
     const existing = await this.getSchoolById(schoolId);
     if (!existing) {
-      throw new Error('School not found');
+      throw new ValidationError(
+        'School not found',
+        'NOT_FOUND',
+        'schoolId'
+      );
     }
 
-    // Prepare update data
-    const updateData: Partial<School> & { updatedAt: import('firebase-admin/firestore').Timestamp } = {
-      ...updates,
-      updatedAt: Timestamp.now(),
-    };
+    // Validate and sanitize update data
+    if (Object.keys(updates).length > 0) {
+      // Create a temporary object with name for validation if updating
+      const validationInput = {
+        name: updates.name || existing.name,
+        ...updates,
+      };
+      validateSchoolInput(validationInput);
+      
+      // Sanitize the actual updates
+      const sanitizedInput = {
+        name: 'placeholder',
+        ...updates,
+      };
+      const sanitized = sanitizeSchoolInput(sanitizedInput);
+      
+      // Prepare update data, excluding placeholder name if not in original updates
+      const updateData: Record<string, unknown> = {
+        updatedAt: Timestamp.now(),
+      };
 
-    // Clean up undefined fields
-    Object.keys(updateData).forEach(
-      key => updateData[key as keyof typeof updateData] === undefined && delete updateData[key as keyof typeof updateData]
-    );
+      // Add sanitized fields (excluding placeholder name if not in updates)
+      if (updates.name !== undefined) {
+        updateData.name = sanitized.name;
+      }
+      if (updates.address !== undefined && sanitized.address !== undefined) {
+        updateData.address = sanitized.address;
+      }
+      if (updates.contactEmail !== undefined && 
+          sanitized.contactEmail !== undefined) {
+        updateData.contactEmail = sanitized.contactEmail;
+      }
+      if (updates.contactPhone !== undefined && 
+          sanitized.contactPhone !== undefined) {
+        updateData.contactPhone = sanitized.contactPhone;
+      }
 
-    const db = getDb();
-    await db
-      .collection(this.collection)
-      .doc(schoolId)
-      .set(updateData, { merge: true });
+      const db = getDb();
+      await db
+        .collection(this.collection)
+        .doc(schoolId)
+        .set(updateData, { merge: true });
+    }
 
     return this.getSchoolById(schoolId) as Promise<School>;
   }
@@ -187,11 +220,80 @@ export class SchoolsService {
     // Check if school exists
     const existing = await this.getSchoolById(schoolId);
     if (!existing) {
-      throw new Error('School not found');
+      throw new ValidationError(
+        'School not found',
+        'NOT_FOUND',
+        'schoolId'
+      );
     }
 
     const db = getDb();
+    
+    // Check for dependent data before deletion
+    await this.checkDependencies(schoolId);
+
+    // Delete the school
     await db.collection(this.collection).doc(schoolId).delete();
+  }
+
+  /**
+   * Check for dependent data before school deletion
+   * 
+   * Prevents deletion if school has associated users, groups, or notices
+   * 
+   * @param {string} schoolId - The school ID
+   * @throws {ValidationError} If dependencies exist
+   */
+  private async checkDependencies(schoolId: string): Promise<void> {
+    const db = getDb();
+
+    // Check for associated users
+    const usersSnapshot = await db
+      .collection('users')
+      .where('schoolId', '==', schoolId)
+      .limit(1)
+      .get();
+
+    if (!usersSnapshot.empty) {
+      throw new ValidationError(
+        'Cannot delete school with existing users. ' +
+        'Please remove or reassign all users first.',
+        'HAS_DEPENDENCIES',
+        'schoolId'
+      );
+    }
+
+    // Check for associated groups
+    const groupsSnapshot = await db
+      .collection('groups')
+      .where('schoolId', '==', schoolId)
+      .limit(1)
+      .get();
+
+    if (!groupsSnapshot.empty) {
+      throw new ValidationError(
+        'Cannot delete school with existing groups. ' +
+        'Please remove all groups first.',
+        'HAS_DEPENDENCIES',
+        'schoolId'
+      );
+    }
+
+    // Check for associated notices
+    const noticesSnapshot = await db
+      .collection('notices')
+      .where('schoolId', '==', schoolId)
+      .limit(1)
+      .get();
+
+    if (!noticesSnapshot.empty) {
+      throw new ValidationError(
+        'Cannot delete school with existing notices. ' +
+        'Please remove all notices first.',
+        'HAS_DEPENDENCIES',
+        'schoolId'
+      );
+    }
   }
 
   /**

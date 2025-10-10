@@ -91,6 +91,7 @@ function getAdminApp(): admin.app.App | null {
     // Initialize with emulator settings (no credentials needed)
     _adminApp = admin.initializeApp({
       projectId: 'myschools-app-dev',
+      storageBucket: 'myschools-app-dev.appspot.com',
     });
     console.log('Firebase Admin SDK initialized for emulators (lazy)');
   } else if (serviceAccount) {

@@ -8,6 +8,8 @@
 import { getUserSession } from '@/lib/auth/session';
 import { getNoticeById } from '@/lib/handlers/notices-handler';
 import Link from 'next/link';
+import AttachmentDownloadScript from './AttachmentDownloadScript';
+import MarkAsReadScript from './MarkAsReadScript';
 
 export const dynamic = 'force-dynamic';
 
@@ -170,13 +172,12 @@ export default async function NoticeDetailPage({
                         </span>
                         <div className="flex-1">
                           <a
-                            href={`${attachment.downloadURL}?noticeId=${notice.noticeId}&schoolId=${schoolId}`}
-                            className="text-blue-600 hover:text-blue-800 font-medium"
-                            data-attachment-download-url={`${attachment.downloadURL}?noticeId=${notice.noticeId}&schoolId=${schoolId}`}
+                            href={`${attachment.downloadURL}&noticeId=${notice.noticeId}&schoolId=${schoolId}`}
+                            className="attachment-download-link text-blue-600 hover:text-blue-800"
+                            data-attachment-download-url={`${attachment.downloadURL}&noticeId=${notice.noticeId}&schoolId=${schoolId}`}
                             data-attachment-filename={attachment.fileName}
                             data-attachment-filetype={attachment.fileType}
                             data-attachment-size={attachment.size?.toString()}
-                            download
                           >
                             {attachment.fileName}
                           </a>
@@ -195,6 +196,10 @@ export default async function NoticeDetailPage({
           </article>
         </main>
       </div>
+      
+      {/* Client-side scripts */}
+      <AttachmentDownloadScript />
+      <MarkAsReadScript noticeId={noticeId} />
     </>
   );
 }

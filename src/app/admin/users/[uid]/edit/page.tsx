@@ -10,7 +10,7 @@
 import { useState, useEffect, FormEvent } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
-import { User, Group } from '@/lib/types';
+import { User, Group, School } from '@/lib/types';
 
 export default function EditUserPage() {
   const [formData, setFormData] = useState({
@@ -20,6 +20,7 @@ export default function EditUserPage() {
     displayName: '',
     groupIds: [] as string[],
   });
+  const [schools, setSchools] = useState<School[]>([]);
   const [availableGroups, setAvailableGroups] = useState<Group[]>([]);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(true);
@@ -28,6 +29,25 @@ export default function EditUserPage() {
   const router = useRouter();
   const params = useParams();
   const uid = params.uid as string;
+
+  // Fetch schools on component mount
+  useEffect(() => {
+    const fetchSchools = async () => {
+      try {
+        const response = await fetch('/api/admin/schools');
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.schools) {
+            setSchools(data.schools);
+          }
+        }
+      } catch (err) {
+        console.warn('Failed to fetch schools:', err);
+      }
+    };
+
+    fetchSchools();
+  }, []);
 
   // Fetch user data and available groups on component mount
   useEffect(() => {
@@ -63,8 +83,8 @@ export default function EditUserPage() {
             const groupsResponse = await fetch(`/api/admin/groups?schoolId=${userSchoolId}`);
             if (groupsResponse.ok) {
               const groupsData = await groupsResponse.json();
-              if (groupsData.success && groupsData.groups) {
-                setAvailableGroups(groupsData.groups);
+              if (groupsData.success && groupsData.data && groupsData.data.groups) {
+                setAvailableGroups(groupsData.data.groups);
               }
             }
           } catch (groupsErr) {
@@ -84,12 +104,49 @@ export default function EditUserPage() {
     }
   }, [uid]);
 
+  // Fetch groups when school changes
+  useEffect(() => {
+    const fetchGroups = async () => {
+      if (!formData.schoolId) {
+        setAvailableGroups([]);
+        return;
+      }
+
+      try {
+        const response = await fetch(`/api/admin/groups?schoolId=${formData.schoolId}`);
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.data && data.data.groups) {
+            setAvailableGroups(data.data.groups);
+          }
+        }
+      } catch (err) {
+        console.warn('Failed to fetch groups:', err);
+      }
+    };
+
+    // Only fetch if schoolId changed and it's not the initial load
+    if (!isLoading && formData.schoolId) {
+      fetchGroups();
+    }
+  }, [formData.schoolId, isLoading]);
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value,
-    }));
+    
+    // Reset groupIds when school changes
+    if (name === 'schoolId') {
+      setFormData(prev => ({
+        ...prev,
+        [name]: value,
+        groupIds: [], // Clear selected groups when school changes
+      }));
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        [name]: value,
+      }));
+    }
   };
 
   const handleGroupToggle = (groupId: string) => {
@@ -284,21 +341,35 @@ export default function EditUserPage() {
                   htmlFor="schoolId"
                   className="block text-sm font-medium text-gray-700 mb-2"
                 >
-                  School ID *
+                  School *
                 </label>
-                <input
-                  id="schoolId"
-                  name="schoolId"
-                  type="text"
-                  required
-                  value={formData.schoolId}
-                  onChange={handleInputChange}
-                  data-field="school-id"
-                  aria-label="School ID"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="school-a"
-                  disabled={isSaving}
-                />
+                {schools.length === 0 ? (
+                  <div className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50">
+                    <span className="text-gray-500">Loading schools...</span>
+                  </div>
+                ) : (
+                  <select
+                    id="schoolId"
+                    name="schoolId"
+                    required
+                    value={formData.schoolId}
+                    onChange={handleInputChange}
+                    data-field="school-id"
+                    aria-label="School"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    disabled={isSaving}
+                  >
+                    <option value="">Select a school</option>
+                    {schools.map((school) => (
+                      <option key={school.schoolId} value={school.schoolId}>
+                        {school.name} ({school.schoolId})
+                      </option>
+                    ))}
+                  </select>
+                )}
+                <p className="text-xs text-gray-500 mt-1">
+                  Select the school this user belongs to
+                </p>
               </div>
 
               <div>
@@ -324,14 +395,14 @@ export default function EditUserPage() {
               </div>
             </div>
 
-            {availableGroups.length > 0 && (
+            {formData.schoolId && (
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Group Memberships
                 </label>
                 <div
                   data-field="group-memberships"
-                  className="space-y-2 border border-gray-200 rounded-lg p-4 bg-gray-50"
+                  className="space-y-2 border border-gray-200 rounded-lg p-4 bg-gray-50 max-h-64 overflow-y-auto"
                 >
                   {availableGroups.length === 0 ? (
                     <p className="text-sm text-gray-500">

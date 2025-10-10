@@ -22,6 +22,8 @@ interface Attachment {
   size: number;
   downloadURL?: string;
   file?: File;
+  uploading?: boolean;
+  uploadError?: string;
 }
 
 interface Notice {
@@ -131,14 +133,32 @@ export default function EditNoticePage({ params }: EditNoticePageProps) {
     setIsSaving(true);
 
     try {
-      // Prepare attachments for submission
-      const attachmentMetadata = attachments.map(att => ({
-        id: att.id,
-        fileName: att.fileName,
-        fileType: att.fileType,
-        size: att.size,
-        downloadURL: att.downloadURL || '',
-      }));
+      // Check if any attachments are still uploading
+      const uploading = attachments.some(att => att.uploading);
+      if (uploading) {
+        setError('Please wait for all attachments to finish uploading');
+        setIsSaving(false);
+        return;
+      }
+
+      // Check if any attachments have errors
+      const hasErrors = attachments.some(att => att.uploadError);
+      if (hasErrors) {
+        setError('Some attachments failed to upload. Please remove them and try again.');
+        setIsSaving(false);
+        return;
+      }
+
+      // Only include attachments that have successfully uploaded (have downloadURL)
+      const uploadedAttachments = attachments
+        .filter(att => att.downloadURL)
+        .map(att => ({
+          id: att.id,
+          fileName: att.fileName,
+          fileType: att.fileType,
+          size: att.size,
+          downloadURL: att.downloadURL!,
+        }));
 
       const response = await fetch(`/api/admin/notices/${noticeId}`, {
         method: 'PUT',
@@ -150,7 +170,7 @@ export default function EditNoticePage({ params }: EditNoticePageProps) {
           body: formData.body,
           status: formData.status,
           groupId: formData.groupId,
-          attachments: attachmentMetadata.length > 0 ? attachmentMetadata : undefined,
+          attachments: uploadedAttachments.length > 0 ? uploadedAttachments : undefined,
         }),
       });
 
@@ -316,9 +336,11 @@ export default function EditNoticePage({ params }: EditNoticePageProps) {
                 disabled={isSaving}
                 maxFiles={5}
                 maxSize={10 * 1024 * 1024} // 10MB
+                schoolId={formData.schoolId}
+                noticeId={noticeId}
               />
               <p className="text-xs text-gray-500 mt-1">
-                Upload PDF files and images to accompany your notice.
+                Upload PDF files and images to accompany your notice. Files will be uploaded immediately.
               </p>
             </div>
 
