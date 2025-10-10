@@ -60,7 +60,7 @@ function getServiceAccount(): admin.ServiceAccount | null {
 /**
  * Initialize Firebase Admin App (singleton pattern)
  */
-let adminApp: admin.app.App;
+let adminApp: admin.app.App | null;
 
 // Check if we should use emulators (development without service account)
 const useEmulators = process.env.NODE_ENV === 'development' && 
@@ -126,8 +126,9 @@ if (adminApp && useEmulators) {
   // Connect to Auth emulator
   try {
     // Check if useEmulator method exists before calling it
-    if ('useEmulator' in admin.auth()) {
-      (admin.auth() as { useEmulator: (url: string) => void }).useEmulator('http://localhost:9099');
+    const auth = admin.auth();
+    if ('useEmulator' in auth && typeof (auth as any).useEmulator === 'function') {
+      (auth as any).useEmulator('http://localhost:9099');
     }
     console.log('Connected to Auth emulator');
   } catch (error) {

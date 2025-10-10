@@ -163,7 +163,7 @@ export async function PUT(
 
     // Parse request body
     const body = await request.json();
-    const { title, body: noticeBody, status } = body;
+    const { title, body: noticeBody, status, attachments } = body;
 
     if (!title || !noticeBody) {
       return NextResponse.json(
@@ -180,6 +180,7 @@ export async function PUT(
       title,
       body: noticeBody,
       status: status as 'draft' | 'published' | 'archived',
+      attachments: attachments || undefined,
     });
 
     return NextResponse.json(

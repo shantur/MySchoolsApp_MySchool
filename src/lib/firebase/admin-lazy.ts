@@ -120,8 +120,9 @@ function getAdminApp(): admin.app.App | null {
           ssl: false
         });
         // Check if useEmulator method exists before calling it
-        if ('useEmulator' in admin.auth()) {
-          (admin.auth() as { useEmulator: (url: string) => void }).useEmulator('http://127.0.0.1:9099');
+        const auth = admin.auth();
+        if ('useEmulator' in auth && typeof (auth as any).useEmulator === 'function') {
+          (auth as any).useEmulator('http://127.0.0.1:9099');
         }
         console.log('Connected to Firebase emulators (lazy)');
       } catch (error) {

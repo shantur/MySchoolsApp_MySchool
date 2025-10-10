@@ -31,7 +31,7 @@ export default function RichTextEditor({
 
   // Initialize editor with content
   useEffect(() => {
-    if (editorRef.current) {
+    if (editorRef.current && document.activeElement !== editorRef.current) {
       const currentContent = value === '' ? placeholder : value;
       if (editorRef.current.innerHTML !== currentContent) {
         editorRef.current.innerHTML = currentContent;
@@ -212,9 +212,6 @@ export default function RichTextEditor({
         data-rich-text-editor
         data-placeholder={placeholder}
         suppressContentEditableWarning={true}
-        dangerouslySetInnerHTML={{
-          __html: value === '' ? placeholder : value
-        }}
       />
 
       {/* Character count */}

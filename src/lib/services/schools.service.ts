@@ -165,7 +165,7 @@ export class SchoolsService {
 
     // Clean up undefined fields
     Object.keys(updateData).forEach(
-      key => updateData[key] === undefined && delete updateData[key]
+      key => updateData[key as keyof typeof updateData] === undefined && delete updateData[key as keyof typeof updateData]
     );
 
     const db = getDb();

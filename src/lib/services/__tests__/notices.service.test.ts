@@ -1,29 +1,57 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * @jest-environment node
  */
 
 import { NoticesService } from '../notices.service';
 
-// Mock Firebase Admin
-jest.mock('../../firebase/admin', () => ({
-  adminDb: {
-    collection: jest.fn(),
-  },
+// Mock Firebase Admin Lazy
+jest.mock('../../firebase/admin-lazy', () => ({
+  getAdminDb: jest.fn(),
 }));
 
-import { adminDb } from '../../firebase/admin';
+import { getAdminDb } from '../../firebase/admin-lazy';
+
+// Type definitions for mocks
+interface MockDocumentSnapshot {
+  exists: boolean;
+  id?: string;
+  data?: () => Record<string, unknown>;
+}
+
+interface MockQuerySnapshot {
+  docs: MockDocumentSnapshot[];
+}
+
+interface MockDocumentReference {
+  get: jest.Mock;
+  set: jest.Mock;
+  delete: jest.Mock;
+}
+
+interface MockQuery {
+  where?: jest.Mock;
+  orderBy?: jest.Mock;
+  get: jest.Mock;
+}
+
+interface MockCollectionReference {
+  doc: jest.Mock<MockDocumentReference>;
+  add: jest.Mock;
+  where: jest.Mock<MockQuery>;
+  orderBy: jest.Mock<MockQuery>;
+  get: jest.Mock;
+}
 
 describe('NoticesService', () => {
   let noticesService: NoticesService;
-  let mockCollection: any;
-  let mockDoc: any;
-  let mockGet: any;
-  let mockAdd: any;
-  let mockSet: any;
-  let mockDelete: any;
-  let mockWhere: any;
-  let mockOrderBy: any;
+  let mockCollection: jest.Mock<MockCollectionReference>;
+  let mockDoc: jest.Mock;
+  let mockGet: jest.Mock;
+  let mockAdd: jest.Mock;
+  let mockSet: jest.Mock;
+  let mockDelete: jest.Mock;
+  let mockWhere: jest.Mock;
+  let mockOrderBy: jest.Mock;
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -49,20 +77,25 @@ describe('NoticesService', () => {
       get: mockGet,
     }));
 
-    (adminDb.collection as jest.Mock) = mockCollection;
+    // Mock the database instance returned by getAdminDb
+    const mockDb = {
+      collection: mockCollection,
+    };
+    (getAdminDb as jest.Mock).mockReturnValue(mockDb);
 
     noticesService = new NoticesService();
   });
 
   describe('createNotice', () => {
-    it('should create a new notice with all fields', async () => {
+    it('should create a new notice with all fields and valid groupId', async () => {
       const noticeData = {
-        schoolId: 'school123',
+        groupId: 'group123',
         title: 'Important Announcement',
         body: 'This is the notice body',
         status: 'published' as const,
         attachments: [
           {
+            id: 'attach1',
             fileName: 'doc.pdf',
             fileType: 'application/pdf',
             downloadURL: '/api/attachments/download/attach123',
@@ -71,16 +104,30 @@ describe('NoticesService', () => {
         ],
       };
 
+      // Mock group document exists with schoolId
+      const mockGroupSnapshot = {
+        exists: true,
+        data: () => ({ schoolId: 'school123', name: 'Grade 10A' }),
+      };
+      
+      mockGet.mockResolvedValueOnce(mockGroupSnapshot);
+
       const mockDocRef = { id: 'notice123' };
       mockAdd.mockResolvedValue(mockDocRef);
 
       const result = await noticesService.createNotice(noticeData);
 
+      // Verify group collection was queried
+      expect(mockCollection).toHaveBeenCalledWith('groups');
+      expect(mockDoc).toHaveBeenCalledWith('group123');
+      
+      // Verify notice collection was used
       expect(mockCollection).toHaveBeenCalledWith('notices');
       expect(mockAdd).toHaveBeenCalled();
 
       const addedData = mockAdd.mock.calls[0][0];
-      expect(addedData.schoolId).toBe(noticeData.schoolId);
+      expect(addedData.schoolId).toBe('school123'); // Derived from group
+      expect(addedData.groupId).toBe(noticeData.groupId);
       expect(addedData.title).toBe(noticeData.title);
       expect(addedData.body).toBe(noticeData.body);
       expect(addedData.status).toBe(noticeData.status);
@@ -91,14 +138,24 @@ describe('NoticesService', () => {
 
       expect(result.noticeId).toBe('notice123');
       expect(result.title).toBe(noticeData.title);
+      expect(result.groupId).toBe('group123');
+      expect(result.schoolId).toBe('school123');
     });
 
     it('should create notice with draft status by default', async () => {
       const noticeData = {
-        schoolId: 'school123',
+        groupId: 'group123',
         title: 'Draft Notice',
         body: 'Draft content',
       };
+
+      // Mock group document exists
+      const mockGroupSnapshot = {
+        exists: true,
+        data: () => ({ schoolId: 'school123', name: 'Grade 10A' }),
+      };
+      
+      mockGet.mockResolvedValueOnce(mockGroupSnapshot);
 
       const mockDocRef = { id: 'notice456' };
       mockAdd.mockResolvedValue(mockDocRef);
@@ -110,21 +167,60 @@ describe('NoticesService', () => {
       expect(result.status).toBe('draft');
     });
 
-    it('should throw error if schoolId is missing', async () => {
+    it('should throw error if groupId is missing', async () => {
       const noticeData = {
-        schoolId: '',
+        groupId: '',
         title: 'Test Notice',
         body: 'Test body',
       };
 
       await expect(
         noticesService.createNotice(noticeData)
-      ).rejects.toThrow('School ID is required');
+      ).rejects.toThrow('Group ID is required');
+    });
+
+    it('should throw error if group does not exist', async () => {
+      const noticeData = {
+        groupId: 'nonexistent-group',
+        title: 'Test Notice',
+        body: 'Test body',
+      };
+
+      // Mock group document does not exist
+      const mockGroupSnapshot = {
+        exists: false,
+      };
+      
+      mockGet.mockResolvedValueOnce(mockGroupSnapshot);
+
+      await expect(
+        noticesService.createNotice(noticeData)
+      ).rejects.toThrow('Group nonexistent-group does not exist');
+    });
+
+    it('should throw error if group does not have a valid schoolId', async () => {
+      const noticeData = {
+        groupId: 'group123',
+        title: 'Test Notice',
+        body: 'Test body',
+      };
+
+      // Mock group document exists but has no schoolId
+      const mockGroupSnapshot = {
+        exists: true,
+        data: () => ({ name: 'Grade 10A' }), // Missing schoolId
+      };
+      
+      mockGet.mockResolvedValueOnce(mockGroupSnapshot);
+
+      await expect(
+        noticesService.createNotice(noticeData)
+      ).rejects.toThrow('Group group123 does not have a valid schoolId');
     });
 
     it('should throw error if title is empty', async () => {
       const noticeData = {
-        schoolId: 'school123',
+        groupId: 'group123',
         title: '',
         body: 'Test body',
       };
@@ -136,7 +232,7 @@ describe('NoticesService', () => {
 
     it('should throw error if body is empty', async () => {
       const noticeData = {
-        schoolId: 'school123',
+        groupId: 'group123',
         title: 'Test Title',
         body: '',
       };

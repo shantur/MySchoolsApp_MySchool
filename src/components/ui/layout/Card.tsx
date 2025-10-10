@@ -70,12 +70,12 @@ const Card = forwardRef<HTMLDivElement, CardProps>(
       `shadow-elevation-${elevation}`,
       
       // Interactive states
-      interactive && [
+      ...(interactive ? [
         'cursor-pointer',
         'hover:shadow-elevation-2',
         'active:shadow-elevation-1',
         'active:scale-[0.98]',
-      ],
+      ] : []),
       
       // Width
       fullWidth ? 'w-full' : 'w-auto',

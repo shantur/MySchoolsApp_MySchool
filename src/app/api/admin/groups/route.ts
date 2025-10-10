@@ -46,27 +46,28 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    // Parse query parameters for schoolId
+    // Parse query parameters for schoolId (optional for admins)
     const { searchParams } = new URL(request.url);
     const schoolId = searchParams.get('schoolId');
 
-    if (!schoolId) {
-      return NextResponse.json(
-        {
-          error: 'School ID is required',
-          code: 'MISSING_REQUIRED_FIELDS',
-        },
-        { status: 400 }
-      );
-    }
-
     // Handle groups listing
-    const groups = await listGroupsHandler(session, schoolId);
+    let groups;
+    if (schoolId) {
+      // Fetch groups for specific school
+      groups = await listGroupsHandler(session, schoolId);
+    } else {
+      // Fetch all groups from all schools (admin only)
+      const { GroupsService } = await import('@/lib/services/groups.service');
+      const groupsService = new GroupsService();
+      groups = await groupsService.listAllGroups();
+    }
 
     return NextResponse.json(
       {
         success: true,
-        groups,
+        data: {
+          groups,
+        },
       },
       { status: 200 }
     );

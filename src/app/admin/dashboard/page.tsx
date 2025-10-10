@@ -245,29 +245,6 @@ export default async function AdminDashboardPage() {
               </Link>
             </div>
 
-            {/* Attachments Management */}
-            <div
-              className="bg-white p-6 rounded-lg shadow hover:shadow-lg transition-shadow"
-              data-admin-section="attachments"
-            >
-              <div className="flex items-center mb-4">
-                <span className="text-3xl mr-3">📎</span>
-                <h2 className="text-xl font-semibold text-gray-900">
-                  Attachments
-                </h2>
-              </div>
-              <p className="text-gray-600 mb-4">
-                Upload and manage PDF files and images for notices.
-              </p>
-              <Link
-                href="/admin/attachments"
-                className="inline-block bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition-colors"
-                data-admin-link="attachments"
-              >
-                Manage Attachments
-              </Link>
-            </div>
-
             {/* System Info */}
             <div
               className="bg-white p-6 rounded-lg shadow hover:shadow-lg transition-shadow"
