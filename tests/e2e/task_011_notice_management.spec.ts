@@ -16,8 +16,8 @@ import { test, expect } from '@playwright/test';
 import path from 'path';
 
 // Test configuration
-const BASE_URL = 'http://localhost:3002';
-const TEST_SCHOOL_ID = 'test-school-123';
+const BASE_URL = 'http://localhost:3000';
+const TEST_SCHOOL_ID = 'test-school';
 
 // Test user credentials
 const ADMIN_CREDENTIALS = {
