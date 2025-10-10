@@ -121,7 +121,7 @@ export class GroupsService {
 
     // Clean up undefined fields
     Object.keys(updateData).forEach(
-      key => updateData[key] === undefined && delete updateData[key]
+      key => updateData[key as keyof typeof updateData] === undefined && delete updateData[key as keyof typeof updateData]
     );
 
     const db = getDb();
@@ -168,5 +168,30 @@ export class GroupsService {
       groupId: doc.id,
       ...doc.data(),
     })) as Group[];
+  }
+
+  /**
+   * List all groups across all schools (admin only)
+   * 
+   * @return {Promise<Group[]>} Array of all groups
+   */
+  async listAllGroups(): Promise<Group[]> {
+    const db = getDb();
+    const snapshot = await db
+      .collection(this.collection)
+      .get();
+
+    // Sort in memory instead of using Firestore compound index
+    const groups = snapshot.docs.map((doc: import('firebase-admin/firestore').QueryDocumentSnapshot) => ({
+      groupId: doc.id,
+      ...doc.data(),
+    })) as Group[];
+
+    return groups.sort((a, b) => {
+      if (a.schoolId !== b.schoolId) {
+        return a.schoolId.localeCompare(b.schoolId);
+      }
+      return a.name.localeCompare(b.name);
+    });
   }
 }

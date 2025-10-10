@@ -19,6 +19,7 @@ export default function AdminGroupsClientPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState<string>('');
+  const [selectedSchoolId, setSelectedSchoolId] = useState<string>('all');
 
   // Set page title
   useEffect(() => {
@@ -26,17 +27,20 @@ export default function AdminGroupsClientPage() {
   }, []);
 
   // Function to fetch groups data
-  const fetchGroups = async () => {
+  const fetchGroups = async (schoolId?: string) => {
     try {
-      // Fetch groups with schoolId parameter
-      const groupsResponse = await apiGet('/api/admin/groups?schoolId=test-school-123');
+      // Fetch groups with optional schoolId parameter
+      const url = schoolId && schoolId !== 'all' 
+        ? `/api/admin/groups?schoolId=${schoolId}`
+        : '/api/admin/groups';
+      const groupsResponse = await apiGet(url);
       
       if (!groupsResponse.success) {
         setError(groupsResponse.error || 'Failed to fetch groups');
         return;
       }
 
-      setGroups(groupsResponse.data?.groups || []);
+      setGroups(groupsResponse.data?.data?.groups || []);
     } catch (err) {
       setError('An error occurred while fetching data');
     }
@@ -46,21 +50,26 @@ export default function AdminGroupsClientPage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        await fetchGroups();
-
-        // For now, we'll use a mock schools map since we don't have a schools endpoint
-        const mockSchools: School[] = [
-          { 
-            schoolId: 'test-school-123', 
-            name: 'Test School', 
-            address: '123 Test St',
-            createdAt: new Date() as any,
-            updatedAt: new Date() as any
-          }
-        ];
+        // First, fetch user session
+        const sessionResponse = await apiGet<{ success: boolean; user: { email: string; uid: string; role: string } }>('/api/auth/me');
         
-        setSchools(mockSchools);
-        setUserEmail('admin@test.com'); // This would come from session
+        if (!sessionResponse.success || !sessionResponse.data?.user) {
+          setError('Failed to load user session');
+          setIsLoading(false);
+          return;
+        }
+
+        const { email } = sessionResponse.data.user;
+        setUserEmail(email);
+
+        // Fetch all schools
+        const schoolsResponse = await apiGet('/api/admin/schools');
+        if (schoolsResponse.success && schoolsResponse.data?.schools) {
+          setSchools(schoolsResponse.data.schools);
+        }
+
+        // Fetch all groups (admin can see all)
+        await fetchGroups();
       } catch (err) {
         setError('An error occurred while fetching data');
       } finally {
@@ -77,7 +86,15 @@ export default function AdminGroupsClientPage() {
     setGroups(prevGroups => prevGroups.filter(group => group.groupId !== deletedGroupId));
     
     // Then fetch fresh data to ensure consistency
-    await fetchGroups();
+    await fetchGroups(selectedSchoolId !== 'all' ? selectedSchoolId : undefined);
+  };
+
+  // Handle school filter change
+  const handleSchoolFilterChange = async (schoolId: string) => {
+    setSelectedSchoolId(schoolId);
+    setIsLoading(true);
+    await fetchGroups(schoolId !== 'all' ? schoolId : undefined);
+    setIsLoading(false);
   };
 
   // Create a map of school IDs to school names for display
@@ -173,7 +190,7 @@ export default function AdminGroupsClientPage() {
 
         <main className="max-w-7xl mx-auto px-4 py-8">
           <div className="bg-white p-6 rounded-lg shadow mb-6">
-            <div className="flex justify-between items-center">
+            <div className="flex justify-between items-center mb-4">
               <div>
                 <h2 className="text-xl font-semibold text-gray-900">
                   School Groups & Classes
@@ -189,6 +206,26 @@ export default function AdminGroupsClientPage() {
               >
                 Create New Group
               </Link>
+            </div>
+            {/* School Filter */}
+            <div className="flex items-center gap-2 mt-4">
+              <label htmlFor="school-filter" className="text-sm font-medium text-gray-700">
+                Filter by School:
+              </label>
+              <select
+                id="school-filter"
+                value={selectedSchoolId}
+                onChange={(e) => handleSchoolFilterChange(e.target.value)}
+                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                data-testid="school-filter"
+              >
+                <option value="all">All Schools</option>
+                {schools.map((school) => (
+                  <option key={school.schoolId} value={school.schoolId}>
+                    {school.name} ({school.schoolId})
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
 

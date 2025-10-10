@@ -10,7 +10,8 @@
 import { useState, FormEvent, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { apiPost } from '@/lib/utils/api-client';
+import { apiPost, apiGet } from '@/lib/utils/api-client';
+import type { School } from '@/lib/types';
 
 export default function CreateGroupPage() {
   const [formData, setFormData] = useState({
@@ -18,6 +19,8 @@ export default function CreateGroupPage() {
     schoolId: '',
     description: '',
   });
+  const [schools, setSchools] = useState<School[]>([]);
+  const [isLoadingSchools, setIsLoadingSchools] = useState(true);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
@@ -25,6 +28,23 @@ export default function CreateGroupPage() {
   // Set page title
   useEffect(() => {
     document.title = 'Create Group | Admin';
+  }, []);
+
+  // Fetch schools on mount
+  useEffect(() => {
+    const fetchSchools = async () => {
+      try {
+        const response = await apiGet<{ success: boolean; schools: School[] }>('/api/admin/schools');
+        if (response.success && response.data?.schools) {
+          setSchools(response.data.schools);
+        }
+      } catch (error) {
+        console.error('Error fetching schools:', error);
+      } finally {
+        setIsLoadingSchools(false);
+      }
+    };
+    fetchSchools();
   }, []);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -141,31 +161,36 @@ export default function CreateGroupPage() {
                 htmlFor="schoolId"
                 className="block text-sm font-medium text-gray-700 mb-2"
               >
-                School ID *
+                School *
               </label>
-              <input
+              <select
                 id="schoolId"
                 name="schoolId"
-                type="text"
                 value={formData.schoolId}
                 onChange={handleInputChange}
                 data-field="school-id"
-                aria-label="School ID"
+                aria-label="School"
                 className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
                   errors.schoolId ? 'border-red-500' : 'border-gray-300'
                 }`}
-                placeholder="school-a"
-                disabled={isLoading}
+                disabled={isLoading || isLoadingSchools}
                 aria-invalid={!!errors.schoolId}
                 aria-describedby={errors.schoolId ? 'schoolId-error' : undefined}
-              />
+              >
+                <option value="">Select a school</option>
+                {schools.map((school) => (
+                  <option key={school.schoolId} value={school.schoolId}>
+                    {school.name} ({school.schoolId})
+                  </option>
+                ))}
+              </select>
               {errors.schoolId && (
                 <p id="schoolId-error" className="mt-1 text-sm text-red-600" role="alert">
                   {errors.schoolId}
                 </p>
               )}
               <p className="text-xs text-gray-500 mt-1">
-                The school this group belongs to
+                Select the school this group belongs to
               </p>
             </div>
 

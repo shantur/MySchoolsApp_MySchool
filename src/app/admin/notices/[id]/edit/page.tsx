@@ -7,33 +7,71 @@
 
 'use client';
 
-import { useState, FormEvent, useEffect, use } from 'react';
+import { useState, FormEvent, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import RichTextEditor from '@/components/ui/forms/RichTextEditor';
+import AttachmentUpload from '@/components/ui/forms/AttachmentUpload';
+import { apiGet } from '@/lib/utils/api-client';
+import type { Group } from '@/lib/types';
+
+interface Attachment {
+  id: string;
+  fileName: string;
+  fileType: string;
+  size: number;
+  downloadURL?: string;
+  file?: File;
+}
 
 interface Notice {
   noticeId: string;
   schoolId: string;
+  groupId: string;
   title: string;
   body: string;
   status: 'draft' | 'published' | 'archived';
+  attachments?: Attachment[];
 }
 
-export default function EditNoticePage({ params }: { params: Promise<{ id: string }> }) {
-  const resolvedParams = use(params);
-  const noticeId = resolvedParams.id;
+interface EditNoticePageProps {
+  params: { id: string };
+}
+
+export default function EditNoticePage({ params }: EditNoticePageProps) {
+  const noticeId = params.id;
   
   const [formData, setFormData] = useState({
     title: '',
     body: '',
     schoolId: '',
+    groupId: '',
     status: 'draft' as 'draft' | 'published' | 'archived',
   });
+  const [groups, setGroups] = useState<Group[]>([]);
+  const [isLoadingGroups, setIsLoadingGroups] = useState(true);
+  const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const router = useRouter();
+
+  // Fetch groups on mount
+  useEffect(() => {
+    const fetchGroups = async () => {
+      try {
+        const response = await apiGet<{ success: boolean; data: { groups: Group[] } }>('/api/admin/groups');
+        if (response.success && response.data?.data?.groups) {
+          setGroups(response.data.data.groups);
+        }
+      } catch (error) {
+        console.error('Error fetching groups:', error);
+      } finally {
+        setIsLoadingGroups(false);
+      }
+    };
+    fetchGroups();
+  }, []);
 
   // Fetch notice data on mount
   useEffect(() => {
@@ -59,8 +97,10 @@ export default function EditNoticePage({ params }: { params: Promise<{ id: strin
           title: notice.title,
           body: notice.body,
           schoolId: notice.schoolId,
+          groupId: notice.groupId || '',
           status: notice.status,
         });
+        setAttachments(notice.attachments || []);
         setIsLoading(false);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load notice');
@@ -91,6 +131,15 @@ export default function EditNoticePage({ params }: { params: Promise<{ id: strin
     setIsSaving(true);
 
     try {
+      // Prepare attachments for submission
+      const attachmentMetadata = attachments.map(att => ({
+        id: att.id,
+        fileName: att.fileName,
+        fileType: att.fileType,
+        size: att.size,
+        downloadURL: att.downloadURL || '',
+      }));
+
       const response = await fetch(`/api/admin/notices/${noticeId}`, {
         method: 'PUT',
         headers: {
@@ -100,6 +149,8 @@ export default function EditNoticePage({ params }: { params: Promise<{ id: strin
           title: formData.title,
           body: formData.body,
           status: formData.status,
+          groupId: formData.groupId,
+          attachments: attachmentMetadata.length > 0 ? attachmentMetadata : undefined,
         }),
       });
 
@@ -254,12 +305,50 @@ export default function EditNoticePage({ params }: { params: Promise<{ id: strin
               </p>
             </div>
 
-            <div className="mb-6 bg-gray-50 p-4 rounded">
-              <p className="text-sm text-gray-600">
-                <strong>School ID:</strong> {formData.schoolId}
-              </p>
+            {/* Attachments Section */}
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Attachments
+              </label>
+              <AttachmentUpload
+                attachments={attachments}
+                onChange={setAttachments}
+                disabled={isSaving}
+                maxFiles={5}
+                maxSize={10 * 1024 * 1024} // 10MB
+              />
               <p className="text-xs text-gray-500 mt-1">
-                The school ID cannot be changed after creation.
+                Upload PDF files and images to accompany your notice.
+              </p>
+            </div>
+
+            <div className="mb-6">
+              <label
+                htmlFor="groupId"
+                className="block text-sm font-medium text-gray-700 mb-2"
+              >
+                Target Group *
+              </label>
+              <select
+                id="groupId"
+                name="groupId"
+                required
+                value={formData.groupId}
+                onChange={handleInputChange}
+                data-field="group-id"
+                aria-label="Target Group"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                disabled={isSaving || isLoadingGroups}
+              >
+                <option value="">Select a group</option>
+                {groups.map((group) => (
+                  <option key={group.groupId} value={group.groupId}>
+                    {group.name} ({group.schoolId})
+                  </option>
+                ))}
+              </select>
+              <p className="text-xs text-gray-500 mt-1">
+                You can change which group receives this notice
               </p>
             </div>
           </div>

@@ -7,11 +7,13 @@
 
 'use client';
 
-import { useState, FormEvent, useMemo } from 'react';
+import { useState, FormEvent, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import RichTextEditor from '@/components/ui/forms/RichTextEditor';
 import AttachmentUpload from '@/components/ui/forms/AttachmentUpload';
+import { apiGet } from '@/lib/utils/api-client';
+import type { Group } from '@/lib/types';
 
 interface Attachment {
   id: string;
@@ -25,13 +27,32 @@ export default function CreateNoticePage() {
   const [formData, setFormData] = useState({
     title: '',
     body: '',
-    schoolId: '',
+    groupId: '',
     status: 'draft',
   });
+  const [groups, setGroups] = useState<Group[]>([]);
+  const [isLoadingGroups, setIsLoadingGroups] = useState(true);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
+
+  // Fetch groups on mount
+  useEffect(() => {
+    const fetchGroups = async () => {
+      try {
+        const response = await apiGet<{ success: boolean; data: { groups: Group[] } }>('/api/admin/groups');
+        if (response.success && response.data?.data?.groups) {
+          setGroups(response.data.data.groups);
+        }
+      } catch (error) {
+        console.error('Error fetching groups:', error);
+      } finally {
+        setIsLoadingGroups(false);
+      }
+    };
+    fetchGroups();
+  }, []);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -41,6 +62,11 @@ export default function CreateNoticePage() {
     }));
   };
 
+  // Get selected group details
+  const selectedGroup = useMemo(() => {
+    return groups.find(g => g.groupId === formData.groupId);
+  }, [groups, formData.groupId]);
+
   // Generate preview HTML with data attributes
   const previewHtml = useMemo(() => {
     if (!formData.title && !formData.body) return '';
@@ -49,7 +75,7 @@ export default function CreateNoticePage() {
     const timestamp = new Date().toISOString();
 
     return `
-      <div data-page-type="notice-detail" data-portal-version="1.0.0" data-timestamp="${timestamp}" data-notice-id="${noticeId}" data-school-id="${formData.schoolId}" class="hidden" aria-hidden="true"></div>
+      <div data-page-type="notice-detail" data-portal-version="1.0.0" data-timestamp="${timestamp}" data-notice-id="${noticeId}" data-group-id="${formData.groupId}" data-school-id="${selectedGroup?.schoolId || ''}" class="hidden" aria-hidden="true"></div>
 
       <article class="notice-detail" data-notice-id="${noticeId}">
         <h1 data-notice-title>${formData.title || 'Notice Title'}</h1>
@@ -58,20 +84,29 @@ export default function CreateNoticePage() {
         </div>
       </article>
     `;
-  }, [formData.title, formData.body, formData.schoolId]);
+  }, [formData.title, formData.body, formData.groupId, selectedGroup]);
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError('');
 
-    if (!formData.title.trim() || !formData.body.trim() || !formData.schoolId.trim()) {
-      setError('Title, body, and school ID are required');
+    if (!formData.title.trim() || !formData.body.trim() || !formData.groupId.trim()) {
+      setError('Title, body, and group are required');
       return;
     }
 
     setIsLoading(true);
 
     try {
+      // Prepare attachments for submission (convert File objects to Attachment metadata)
+      const attachmentMetadata = attachments.map(att => ({
+        id: att.id,
+        fileName: att.fileName,
+        fileType: att.fileType,
+        size: att.size,
+        downloadURL: '', // Will be populated after upload
+      }));
+
       const response = await fetch('/api/admin/notices', {
         method: 'POST',
         headers: {
@@ -80,8 +115,9 @@ export default function CreateNoticePage() {
         body: JSON.stringify({
           title: formData.title,
           body: formData.body,
-          schoolId: formData.schoolId,
+          groupId: formData.groupId,
           status: formData.status,
+          attachments: attachmentMetadata.length > 0 ? attachmentMetadata : undefined,
         }),
       });
 
@@ -151,24 +187,32 @@ export default function CreateNoticePage() {
 
               <div>
                 <label
-                  htmlFor="schoolId"
+                  htmlFor="groupId"
                   className="block text-sm font-medium text-gray-700 mb-2"
                 >
-                  School ID *
+                  Target Group *
                 </label>
-                <input
-                  id="schoolId"
-                  name="schoolId"
-                  type="text"
+                <select
+                  id="groupId"
+                  name="groupId"
                   required
-                  value={formData.schoolId}
+                  value={formData.groupId}
                   onChange={handleInputChange}
-                  data-field="school-id"
-                  aria-label="School ID"
+                  data-field="group-id"
+                  aria-label="Target Group"
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="school-a"
-                  disabled={isLoading}
-                />
+                  disabled={isLoading || isLoadingGroups}
+                >
+                  <option value="">Select a group</option>
+                  {groups.map((group) => (
+                    <option key={group.groupId} value={group.groupId}>
+                      {group.name} ({group.schoolId})
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-gray-500 mt-1">
+                  Select which group will receive this notice
+                </p>
               </div>
             </div>
 
@@ -271,7 +315,8 @@ export default function CreateNoticePage() {
                       <div><span className="text-purple-600">data-page-type:</span> <span className="text-blue-600">{'"'}notice-detail{'"'}</span></div>
                       <div><span className="text-purple-600">data-portal-version:</span> <span className="text-blue-600">{'"'}1.0.0{'"'}</span></div>
                       <div><span className="text-purple-600">data-notice-id:</span> <span className="text-blue-600">{'"'}preview-notice{'"'}</span></div>
-                      <div><span className="text-purple-600">data-school-id:</span> <span className="text-blue-600">{'"'}{formData.schoolId || '(not set)'}{'"'}</span></div>
+                      <div><span className="text-purple-600">data-group-id:</span> <span className="text-blue-600">{'"'}{formData.groupId || '(not set)'}{'"'}</span></div>
+                      <div><span className="text-purple-600">data-school-id:</span> <span className="text-blue-600">{'"'}{selectedGroup?.schoolId || '(not set)'}{'"'}</span></div>
                       <div><span className="text-purple-600">data-notice-title:</span> <span className="text-blue-600">{'"'}{formData.title || '(not set)'}{'"'}</span></div>
                       <div><span className="text-purple-600">data-notice-body:</span> <span className="text-green-600">(content present)</span></div>
                       <div><span className="text-purple-600">data-content-format:</span> <span className="text-blue-600">{'"'}html{'"'}</span></div>

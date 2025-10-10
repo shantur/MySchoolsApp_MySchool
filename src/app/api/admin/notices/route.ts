@@ -83,12 +83,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
 
     const body = await request.json();
-    const { title, body: noticeBody, schoolId, status } = body;
+    const { title, body: noticeBody, groupId, status, attachments } = body;
 
-    if (!title || !noticeBody || !schoolId) {
+    if (!title || !noticeBody || !groupId) {
       return NextResponse.json(
         {
-          error: 'Title, body, and schoolId are required',
+          error: 'Title, body, and groupId are required',
           code: 'MISSING_REQUIRED_FIELDS',
         },
         { status: 400 }
@@ -99,8 +99,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const result = await createNoticeHandler(session, {
       title,
       body: noticeBody,
-      schoolId,
+      groupId,
       status: status as 'draft' | 'published',
+      attachments: attachments || undefined,
     });
 
     if (!result.success) {

@@ -65,10 +65,12 @@ export interface Attachment {
 
 /**
  * Notice entity
+ * Note: schoolId kept for context/access control, groupId is primary association
  */
 export interface Notice {
   noticeId: string;
-  schoolId: string;
+  schoolId: string;  // Kept for school-level context/access checks
+  groupId: string;   // Primary group association (one-to-one)
   title: string;
   body: string;
   publicationDate: FirestoreTimestamp;
