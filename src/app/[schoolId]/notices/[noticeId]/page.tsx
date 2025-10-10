@@ -173,11 +173,12 @@ export default async function NoticeDetailPage({
             </div>
             
             <div
-              className="notice-content prose max-w-none mb-8"
+              className="notice-content prose max-w-none mb-8 whitespace-pre-wrap"
               data-notice-body
-              data-content-format="html"
-              dangerouslySetInnerHTML={{ __html: notice.body }}
-            />
+              data-content-format="plaintext"
+            >
+              {notice.body}
+            </div>
             
             {notice.attachments && notice.attachments.length > 0 && (
               <div className="border-t pt-6">

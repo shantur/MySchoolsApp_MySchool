@@ -83,8 +83,8 @@ export default function CreateNoticePage() {
 
       <article class="notice-detail" data-notice-id="${noticeId}">
         <h1 data-notice-title>${formData.title || 'Notice Title'}</h1>
-        <div class="notice-content" data-notice-body data-content-format="html">
-          ${formData.body ? formData.body.replace(/\n/g, '<br>') : '<p>Notice content will appear here...</p>'}
+        <div class="notice-content" data-notice-body data-content-format="plaintext" style="white-space: pre-wrap;">
+          ${formData.body || 'Notice content will appear here...'}
         </div>
       </article>
     `;
