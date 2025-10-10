@@ -184,7 +184,16 @@ export default async function AdminNoticesPage() {
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {notice.publicationDate.toDate().toLocaleDateString()}
+                          <div>
+                            {notice.publicationDate.toDate().toLocaleDateString()}
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            {notice.publicationDate.toDate().toLocaleTimeString('en-GB', {
+                              hour: '2-digit',
+                              minute: '2-digit',
+                              hour12: false,
+                            })}
+                          </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                           <div className="flex gap-2">

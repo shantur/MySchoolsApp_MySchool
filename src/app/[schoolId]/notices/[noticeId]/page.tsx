@@ -71,6 +71,10 @@ export default async function NoticeDetailPage({
   // Fetch notice
   const notice = await getNoticeById(schoolId, noticeId, session);
   
+  // Check if user has read this notice
+  const { hasUserReadNotice } = await import('@/lib/services/notice-read.service');
+  const isRead = await hasUserReadNotice(session.uid, noticeId);
+  
   if (!notice) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -122,6 +126,8 @@ export default async function NoticeDetailPage({
           <article
             className="notice-detail bg-white p-8 rounded-lg shadow"
             data-notice-id={notice.noticeId}
+            data-school-id={schoolId}
+            data-read-status={isRead ? 'read' : 'unread'}
           >
             <h1
               className="text-3xl font-bold text-gray-900 mb-4"
@@ -139,9 +145,16 @@ export default async function NoticeDetailPage({
                   </span>
                 </div>
               )}
-              <span
+              <div
                 data-notice-publication-date={
                   notice.publicationDate.toDate().toISOString()
+                }
+                data-notice-publication-time={
+                  notice.publicationDate.toDate().toLocaleTimeString('en-GB', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    hour12: false,
+                  })
                 }
               >
                 Published on{' '}
@@ -149,8 +162,14 @@ export default async function NoticeDetailPage({
                   year: 'numeric',
                   month: 'long',
                   day: 'numeric',
+                })}{' '}
+                at{' '}
+                {notice.publicationDate.toDate().toLocaleTimeString('en-GB', {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                  hour12: false,
                 })}
-              </span>
+              </div>
             </div>
             
             <div

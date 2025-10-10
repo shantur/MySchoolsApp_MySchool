@@ -91,11 +91,24 @@ export default function NoticeListItem({
               <span
                 className="notice-date text-gray-500"
                 data-notice-publication-date={notice.publicationDate}
+                data-notice-publication-time={
+                  new Date(notice.publicationDate).toLocaleTimeString('en-GB', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    hour12: false,
+                  })
+                }
               >
                 {new Date(notice.publicationDate).toLocaleDateString('en-US', {
                   year: 'numeric',
                   month: 'long',
                   day: 'numeric',
+                })}{' '}
+                at{' '}
+                {new Date(notice.publicationDate).toLocaleTimeString('en-GB', {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                  hour12: false,
                 })}
               </span>
             </div>
