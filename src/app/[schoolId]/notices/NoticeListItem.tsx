@@ -18,6 +18,7 @@ interface SerializedNotice {
   body: string;
   status: 'draft' | 'published' | 'archived';
   publicationDate: string; // ISO string
+  createdAt?: string; // ISO string - when the notice was first created
   senderName?: string;
   attachments?: Array<{
     id: string;
@@ -47,6 +48,7 @@ export default function NoticeListItem({
       data-notice-id={notice.noticeId}
       data-school-id={notice.schoolId}
       data-read-status={isUnread ? 'unread' : 'read'}
+      data-created-at={notice.createdAt}
     >
       <div className="flex items-start gap-3">
         {/* Blue dot indicator for unread notices */}

@@ -62,6 +62,7 @@ export default async function NoticesListPage({
     body: notice.body,
     status: notice.status,
     publicationDate: notice.publicationDate.toDate().toISOString(),
+    createdAt: notice.createdAt?.toDate().toISOString(),
     senderName: notice.senderName,
     attachments: notice.attachments,
   }));
