@@ -129,14 +129,160 @@ Choose one of the following:
 - `NODE_ENV` - Environment (development/production)
 - `USE_FIREBASE_EMULATORS` - Whether to use emulators (default: true in development)
 
+## Cloud Functions Setup
+
+This project uses Firebase Cloud Functions to handle Server-Side Rendering (SSR) for the Next.js application.
+
+### Prerequisites
+
+- Node.js 18+
+- Firebase CLI: `npm install -g firebase-tools`
+- Firebase project configured
+
+### Local Development with Cloud Functions
+
+1. **Install dependencies:**
+   ```bash
+   npm install
+   cd functions && npm install && cd ..
+   ```
+
+2. **Build the application:**
+   ```bash
+   npm run build:functions
+   ```
+
+3. **Set up environment variables:**
+   ```bash
+   # Get current config (if already set) or create manually
+   firebase functions:config:get > functions/.runtimeconfig.json
+   ```
+
+4. **Start emulators:**
+   ```bash
+   npm run emulators:functions
+   ```
+
+5. **Access the application:**
+   - Hosting: http://localhost:15000
+   - Functions: http://localhost:15001
+   - Emulator UI: http://localhost:4100 (if enabled)
+
+### Build Process Details
+
+The `build:functions` script performs the following steps:
+
+1. **Next.js Build** (`NODE_ENV=production next build`):
+   - Compiles Next.js application with production optimizations
+   - Generates `.next` directory with SSR and API route artifacts
+   - Applies tree-shaking and code minification
+
+2. **Directory Copying** (with symlink dereferencing using `-L` flag):
+   - `.next` → `functions/.next` (build output)
+   - `src/app` → `functions/src/app` (Next.js pages and API routes)
+   - `src/components` → `functions/src/components` (React components)
+   - `src/lib` → `functions/src/lib` (utility libraries and services)
+   - `src/middleware` → `functions/src/middleware` (Next.js middleware)
+   - `src/middleware.ts` → `functions/src/middleware.ts` (middleware file)
+
+3. **Configuration Copying**:
+   - `next.config.js` → `functions/next.config.js`
+   - `tsconfig.json` → `functions/tsconfig-parent.json`
+
+4. **Production Dependencies** (`NODE_ENV=production npm ci --production`):
+   - Installs only production dependencies
+   - Excludes dev dependencies to minimize deployment size
+
+**Important:** All directory copies use the `-L` flag to dereference symlinks, ensuring that Cloud Functions have access to actual file contents rather than broken symlink references.
+
+**TypeScript Path Aliases:** The build process preserves TypeScript path aliases (`@/components`, `@/lib`, etc.) by copying source directories into the functions folder and maintaining the same `tsconfig.json` paths configuration.
+
+### Testing Cloud Functions
+
+```bash
+# Run all tests
+npm test
+
+# Run function unit tests
+npm run test:functions
+
+# Run E2E tests
+npm run test:e2e
+
+# Check deployment size
+npm run check-size
+```
+
+### Deployment
+
+```bash
+# Build for production
+npm run build:functions
+
+# Check size before deploying
+npm run check-size
+
+# Deploy to Firebase
+firebase deploy --only functions,hosting
+```
+
+### Environment Variables for Cloud Functions
+
+Required environment variables (set via `firebase functions:config:set`):
+
+- `firebase.admin_key_base64`: Base64-encoded service account JSON
+- `session.secret`: JWT signing secret (64+ characters)
+- `app.use_emulators`: "true" for local, "false" for production
+- `app.environment`: "development", "staging", or "production"
+
+### Performance Targets
+
+- Cold start: <3 seconds
+- Warm requests: <500ms
+- Memory usage: <1.5GB under load
+- Deployment size: <300MB (max 500MB)
+
+### Troubleshooting Cloud Functions
+
+**Functions not starting:**
+- Verify `functions/package.json` dependencies are installed
+- Check `functions/.runtimeconfig.json` exists and is valid JSON
+- Review logs in Emulator UI
+- Ensure all source directories were copied: run `ls -la functions/src/` and verify `app`, `components`, `lib`, `middleware` exist
+
+**Module resolution errors (Cannot find module '@/components', '@/lib', etc.):**
+- Ensure you ran `npm run build:functions` (not just `npm run build`)
+- Verify source directories were copied: `ls -la functions/src/`
+- Check `functions/tsconfig.json` has correct path aliases
+- Verify no symlinks exist in functions directory: `find functions/src -type l`
+
+**Deployment size too large:**
+- Run `npm run check-size` to identify large directories
+- Ensure using `npm ci --production` in functions directory
+- Check for unnecessary files in `.next` build
+- Current acceptable size: ~407MB (under 500MB Firebase limit)
+
+**Cold starts too slow:**
+- Verify memory allocation is 2GB
+- Check Next.js build optimization
+- Ensure `NODE_ENV=production` is set during build
+
+**Build script failures:**
+- Verify all required source directories exist: `app`, `components`, `lib`
+- Check for broken symlinks in source: `find src -type l -exec test ! -e {} \; -print`
+- Ensure sufficient disk space for build artifacts
+- Consider implementing function warm-up strategy
+
 ## Firebase Emulators
 
 The project is configured to use Firebase Emulators for local development:
 
-- **Auth Emulator**: http://localhost:9099
-- **Firestore Emulator**: http://localhost:8080
-- **Storage Emulator**: http://localhost:9199
-- **Emulator UI**: http://localhost:4000
+- **Auth Emulator**: http://localhost:19099
+- **Firestore Emulator**: http://localhost:18080
+- **Storage Emulator**: http://localhost:19199
+- **Functions Emulator**: http://localhost:15001
+- **Hosting Emulator**: http://localhost:15000
+- **Emulator UI**: http://localhost:4100
 
 ### Exporting and Importing Emulator Data
 

@@ -1,0 +1,189 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Design System - CSS Custom Properties (Design Tokens) */
+
+/* Light Theme (Default) */
+:root {
+  /* Font Families */
+  --font-primary: 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+  --font-mono: 'SFMono-Regular', Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+  
+  /* Material Design 3 - Primary Palette */
+  --color-primary: #6750A4;
+  --color-on-primary: #FFFFFF;
+  --color-primary-container: #EADDFF;
+  --color-on-primary-container: #21005D;
+  
+  /* Material Design 3 - Secondary Palette */
+  --color-secondary: #625B71;
+  --color-on-secondary: #FFFFFF;
+  --color-secondary-container: #E8DEF8;
+  --color-on-secondary-container: #1D192B;
+  
+  /* Material Design 3 - Tertiary Palette */
+  --color-tertiary: #7D5260;
+  --color-on-tertiary: #FFFFFF;
+  --color-tertiary-container: #FFD8E4;
+  --color-on-tertiary-container: #31111D;
+  
+  /* Material Design 3 - Error Palette */
+  --color-error: #BA1A1A;
+  --color-on-error: #FFFFFF;
+  --color-error-container: #FFDAD6;
+  --color-on-error-container: #410002;
+  
+  /* Material Design 3 - Neutral Palette */
+  --color-outline: #79747E;
+  --color-background: #FFFBFE;
+  --color-on-background: #1C1B1F;
+  --color-surface: #FFFBFE;
+  --color-surface-variant: #E7E0EC;
+  --color-on-surface: #1C1B1F;
+  --color-on-surface-variant: #49454F;
+  
+  /* Custom Brand Colors */
+  --color-brand-blue: #007BFF;
+  --color-brand-green: #28A745;
+  --color-brand-red: #DC3545;
+  
+  /* Legacy Support */
+  --foreground: #1C1B1F;
+}
+
+/* Dark Theme */
+.dark {
+  /* Material Design 3 - Primary Palette (Dark) */
+  --color-primary: #D0BCFF;
+  --color-on-primary: #381E72;
+  --color-primary-container: #4F378B;
+  --color-on-primary-container: #EADDFF;
+  
+  /* Material Design 3 - Secondary Palette (Dark) */
+  --color-secondary: #CCC2DC;
+  --color-on-secondary: #332D41;
+  --color-secondary-container: #4A4458;
+  --color-on-secondary-container: #E8DEF8;
+  
+  /* Material Design 3 - Tertiary Palette (Dark) */
+  --color-tertiary: #EFB8C8;
+  --color-on-tertiary: #492532;
+  --color-tertiary-container: #633B48;
+  --color-on-tertiary-container: #FFD8E4;
+  
+  /* Material Design 3 - Error Palette (Dark) */
+  --color-error: #FFB4AB;
+  --color-on-error: #690005;
+  --color-error-container: #93000A;
+  --color-on-error-container: #FFDAD6;
+  
+  /* Material Design 3 - Neutral Palette (Dark) */
+  --color-outline: #938F99;
+  --color-background: #1C1B1F;
+  --color-on-background: #E6E1E5;
+  --color-surface: #1C1B1F;
+  --color-surface-variant: #49454F;
+  --color-on-surface: #E6E1E5;
+  --color-on-surface-variant: #CAC4D0;
+  
+  /* Custom Brand Colors (Dark adjustments) */
+  --color-brand-blue: #4DABF7;
+  --color-brand-green: #51CF66;
+  --color-brand-red: #FF6B6B;
+  
+  /* Legacy Support */
+  --foreground: #E6E1E5;
+}
+
+/* Base styles */
+body {
+  color: var(--color-on-background);
+  background: var(--color-background);
+  font-family: var(--font-primary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Focus styles for accessibility */
+*:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+/* Custom utility classes */
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+  
+  /* Elevation utilities */
+  .elevation-0 { box-shadow: var(--shadow-elevation-0, none); }
+  .elevation-1 { box-shadow: var(--shadow-elevation-1, 0px 1px 3px 1px rgba(0, 0, 0, 0.15), 0px 1px 2px 0px rgba(0, 0, 0, 0.30)); }
+  .elevation-2 { box-shadow: var(--shadow-elevation-2, 0px 2px 6px 2px rgba(0, 0, 0, 0.15), 0px 1px 2px 0px rgba(0, 0, 0, 0.30)); }
+  .elevation-3 { box-shadow: var(--shadow-elevation-3, 0px 4px 8px 3px rgba(0, 0, 0, 0.15), 0px 1px 3px 0px rgba(0, 0, 0, 0.30)); }
+  .elevation-4 { box-shadow: var(--shadow-elevation-4, 0px 6px 10px 4px rgba(0, 0, 0, 0.15), 0px 2px 3px 0px rgba(0, 0, 0, 0.30)); }
+  .elevation-5 { box-shadow: var(--shadow-elevation-5, 0px 8px 12px 6px rgba(0, 0, 0, 0.15), 0px 4px 4px 0px rgba(0, 0, 0, 0.30)); }
+  
+  /* Surface utilities */
+  .surface {
+    background-color: var(--color-surface);
+    color: var(--color-on-surface);
+  }
+  
+  .surface-variant {
+    background-color: var(--color-surface-variant);
+    color: var(--color-on-surface-variant);
+  }
+  
+  /* Text utilities */
+  .text-primary { color: var(--color-primary); }
+  .text-secondary { color: var(--color-secondary); }
+  .text-tertiary { color: var(--color-tertiary); }
+  .text-error { color: var(--color-error); }
+  .text-on-background { color: var(--color-on-background); }
+  .text-on-surface { color: var(--color-on-surface); }
+}
+
+/* Component base styles */
+@layer components {
+  /* Button base styles */
+  .btn-base {
+    @apply inline-flex items-center justify-center rounded-md font-medium px-6 py-3 transition-all duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:opacity-50 disabled:cursor-not-allowed;
+    font-size: 14px;
+    line-height: 16px;
+  }
+  
+  .btn-base:focus-visible {
+    outline-color: var(--color-primary);
+  }
+  
+  /* Input base styles */
+  .input-base {
+    @apply w-full rounded-sm border border-outline bg-surface px-4 py-3 transition-colors focus:outline-none focus:ring-2 disabled:opacity-50 disabled:cursor-not-allowed;
+    color: var(--color-on-surface);
+    font-size: 16px;
+    line-height: 24px;
+  }
+  
+  .input-base:focus {
+    border-color: var(--color-primary);
+    ring-color: var(--color-primary);
+  }
+  
+  .input-base::placeholder {
+    color: var(--color-on-surface-variant);
+  }
+  
+  /* Card base styles */
+  .card-base {
+    background-color: var(--color-surface);
+    color: var(--color-on-surface);
+    @apply rounded-md p-6 transition-shadow;
+    box-shadow: 0px 1px 3px 1px rgba(0, 0, 0, 0.15), 0px 1px 2px 0px rgba(0, 0, 0, 0.30);
+  }
+  
+  .card-base:hover {
+    box-shadow: 0px 2px 6px 2px rgba(0, 0, 0, 0.15), 0px 1px 2px 0px rgba(0, 0, 0, 0.30);
+  }
+}

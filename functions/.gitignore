@@ -1,0 +1,17 @@
+# Compiled JavaScript files
+lib/
+
+# Node modules
+node_modules/
+
+# Next.js build output (copied from parent)
+.next/
+
+# Runtime configuration (contains secrets)
+.runtimeconfig.json
+
+# Test coverage
+coverage/
+
+# Logs
+*.log

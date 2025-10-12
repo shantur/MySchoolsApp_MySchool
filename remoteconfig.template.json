@@ -1,0 +1,22 @@
+{
+  "conditions": [],
+  "parameters": {
+    "static_schools": {
+      "defaultValue": {
+        "value": "{\"schools\":[{\"schoolId\":\"test-school-123\",\"schoolName\":\"Test School (MySchoolWeb)\",\"schoolAddress\":\"123 Test St, Test City, TC 12345\",\"adapterType\":\"myschoolweb\",\"adapterSubType\":\"myschoolweb_v1.0\",\"portalBaseUrl\":\"http://10.0.2.2:3000\",\"authenticationMethod\":\"username_password\",\"supportedFeatures\":[\"notices\",\"attachments\"],\"minimumAppVersion\":\"0.1.0\"},{\"schoolId\":\"school_001\",\"schoolName\":\"Springfield Elementary School\",\"schoolAddress\":\"123 Main St, Springfield, SP 12345\",\"adapterType\":\"mock\",\"adapterSubType\":\"mock_school_v1.0\",\"portalBaseUrl\":\"https://springfield-elementary.school-portal.com\",\"authenticationMethod\":\"username_password\",\"supportedFeatures\":[\"notices\"],\"minimumAppVersion\":\"0.1.0\"},{\"schoolId\":\"school_002\",\"schoolName\":\"Riverside High School\",\"schoolAddress\":\"456 River Rd, Riverside, RS 67890\",\"adapterType\":\"mock\",\"adapterSubType\":\"mock_school_v1.0\",\"portalBaseUrl\":\"https://riverside-high.edu-portal.net\",\"authenticationMethod\":\"username_password\",\"supportedFeatures\":[\"notices\"],\"minimumAppVersion\":\"0.1.0\"}]}"
+      },
+      "description": "Static school configuration list for MySchools App",
+      "valueType": "STRING"
+    }
+  },
+  "version": {
+    "versionNumber": "1",
+    "updateTime": "2025-10-10T00:00:00Z",
+    "updateUser": {
+      "email": "admin@myschoolsapp.com"
+    },
+    "description": "Initial Remote Config setup with MySchoolWeb test school",
+    "updateOrigin": "ADMIN_SDK_NODE",
+    "updateType": "INCREMENTAL_UPDATE"
+  }
+}
