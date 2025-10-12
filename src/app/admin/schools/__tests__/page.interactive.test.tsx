@@ -3,7 +3,7 @@
  * Tests that interactive elements work correctly without React errors
  */
 
-import { render, screen, act } from '@testing-library/react';
+import { render, act } from '@testing-library/react';
 import AdminSchoolsPage from '../page';
 import { getUserSession } from '@/lib/auth/session';
 import { getAllSchools } from '@/lib/handlers/schools-handler';

@@ -63,7 +63,7 @@ export default function AttachmentUpload({
   };
 
   // Upload a single file
-  const uploadFile = async (file: File, attachmentId: string): Promise<string | null> => {
+  const uploadFile = async (file: File, _attachmentId: string): Promise<string | null> => {
     try {
       const formData = new FormData();
       formData.append('file', file);

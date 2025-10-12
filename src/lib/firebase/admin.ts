@@ -127,8 +127,9 @@ if (adminApp && useEmulators) {
   try {
     // Check if useEmulator method exists before calling it
     const auth = admin.auth();
-    if ('useEmulator' in auth && typeof (auth as any).useEmulator === 'function') {
-      (auth as any).useEmulator('http://localhost:9099');
+    const authWithEmulator = auth as { useEmulator?: (url: string) => void };
+    if ('useEmulator' in auth && typeof authWithEmulator.useEmulator === 'function') {
+      authWithEmulator.useEmulator('http://localhost:9099');
     }
     console.log('Connected to Auth emulator');
   } catch (error) {

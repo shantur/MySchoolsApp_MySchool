@@ -127,7 +127,7 @@ export async function updateUserHandler(
     }
 
     // Prepare update data for Firestore
-    const firestoreUpdateData: any = {
+    const firestoreUpdateData: Record<string, unknown> = {
       email: updateData.email,
       schoolId: updateData.schoolId,
       role: updateData.role,

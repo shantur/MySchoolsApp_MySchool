@@ -96,7 +96,7 @@ export default function CreateGroupPage() {
 
       // Redirect to groups list
       router.push('/admin/groups');
-    } catch (error) {
+    } catch {
       setErrors({ form: 'An error occurred. Please try again.' });
       setIsLoading(false);
     }

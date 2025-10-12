@@ -30,6 +30,8 @@ const customJestConfig = {
     'src/app/**/[*]__tests__/**/*.(test|spec).(ts|tsx|js)',
     'src/app/**/[*]/**/*.(test|spec).(ts|tsx|js)',
   ],
+  testPathIgnorePatterns: ['/node_modules/', '/functions/', '/.next/', '/tests/'],
+  modulePathIgnorePatterns: ['/functions/', '/.next/'],
   moduleDirectories: ['node_modules', '<rootDir>/'],
   transformIgnorePatterns: [
     'node_modules/(?!(jose)/)',

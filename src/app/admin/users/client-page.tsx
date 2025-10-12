@@ -30,7 +30,7 @@ export default function AdminUsersClientPage() {
       }
       const data = await response.json();
       setUsers(data.users || []);
-    } catch (err) {
+    } catch {
       setError('Failed to load users');
     } finally {
       setIsLoading(false);
@@ -61,7 +61,7 @@ export default function AdminUsersClientPage() {
       // Remove user from list
       setUsers(users.filter(u => u.uid !== deleteConfirm.uid));
       setDeleteConfirm(null);
-    } catch (err) {
+    } catch {
       setError('An error occurred while deleting the user');
     } finally {
       setIsDeleting(false);

@@ -1,6 +1,7 @@
 /**
  * Tests for users handler update and delete functions
  */
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
 
 import { updateUserHandler, deleteUserHandler } from '../users-handler';
 import { getAdminDb, getAdminAuth } from '@/lib/firebase/admin-lazy';

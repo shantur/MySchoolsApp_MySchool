@@ -12,14 +12,10 @@ jest.mock('../../firebase/admin-lazy', () => ({
 import { getAdminDb } from '../../firebase/admin-lazy';
 
 // Type definitions for mocks
-interface MockDocumentSnapshot {
+interface _MockDocumentSnapshot {
   exists: boolean;
   id?: string;
   data?: () => Record<string, unknown>;
-}
-
-interface MockQuerySnapshot {
-  docs: MockDocumentSnapshot[];
 }
 
 interface MockDocumentReference {

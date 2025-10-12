@@ -11,14 +11,14 @@
 export interface ApiRequestConfig {
   method?: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
   headers?: Record<string, string>;
-  body?: any;
+  body?: unknown;
   credentials?: RequestCredentials;
 }
 
 /**
  * API Response wrapper
  */
-export interface ApiResponse<T = any> {
+export interface ApiResponse<T = unknown> {
   success: boolean;
   data?: T;
   error?: string;
@@ -33,7 +33,7 @@ export interface ApiResponse<T = any> {
  * @param {ApiRequestConfig} config - Request configuration
  * @return {Promise<ApiResponse>} API response with data or error
  */
-export async function apiClient<T = any>(
+export async function apiClient<T = unknown>(
   url: string,
   config: ApiRequestConfig = {}
 ): Promise<ApiResponse<T>> {
@@ -93,27 +93,27 @@ export async function apiClient<T = any>(
 /**
  * Convenience method for GET requests
  */
-export async function apiGet<T = any>(url: string, headers?: Record<string, string>): Promise<ApiResponse<T>> {
+export async function apiGet<T = unknown>(url: string, headers?: Record<string, string>): Promise<ApiResponse<T>> {
   return apiClient<T>(url, { method: 'GET', headers });
 }
 
 /**
  * Convenience method for POST requests
  */
-export async function apiPost<T = any>(url: string, body?: any, headers?: Record<string, string>): Promise<ApiResponse<T>> {
+export async function apiPost<T = unknown>(url: string, body?: unknown, headers?: Record<string, string>): Promise<ApiResponse<T>> {
   return apiClient<T>(url, { method: 'POST', body, headers });
 }
 
 /**
  * Convenience method for PUT requests
  */
-export async function apiPut<T = any>(url: string, body?: any, headers?: Record<string, string>): Promise<ApiResponse<T>> {
+export async function apiPut<T = unknown>(url: string, body?: unknown, headers?: Record<string, string>): Promise<ApiResponse<T>> {
   return apiClient<T>(url, { method: 'PUT', body, headers });
 }
 
 /**
  * Convenience method for DELETE requests
  */
-export async function apiDelete<T = any>(url: string, headers?: Record<string, string>): Promise<ApiResponse<T>> {
+export async function apiDelete<T = unknown>(url: string, headers?: Record<string, string>): Promise<ApiResponse<T>> {
   return apiClient<T>(url, { method: 'DELETE', headers });
 }

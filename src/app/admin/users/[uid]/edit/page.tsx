@@ -10,7 +10,7 @@
 import { useState, useEffect, FormEvent } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
-import { User, Group, School } from '@/lib/types';
+import { Group, School } from '@/lib/types';
 
 export default function EditUserPage() {
   const [formData, setFormData] = useState({
@@ -92,7 +92,7 @@ export default function EditUserPage() {
             // Continue without groups - this is not a critical error
           }
         }
-      } catch (err) {
+      } catch {
         setError('An error occurred while fetching user data');
       } finally {
         setIsLoading(false);

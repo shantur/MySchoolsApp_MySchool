@@ -105,7 +105,7 @@ describe('ErrorBoundary', () => {
       return <div data-testid="recovered">Recovered</div>;
     };
     
-    const { rerender } = render(
+    render(
       <ErrorBoundary>
         <ConditionalErrorComponent />
       </ErrorBoundary>

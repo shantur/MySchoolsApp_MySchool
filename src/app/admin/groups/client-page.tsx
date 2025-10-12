@@ -41,7 +41,7 @@ export default function AdminGroupsClientPage() {
       }
 
       setGroups(groupsResponse.data?.data?.groups || []);
-    } catch (err) {
+    } catch {
       setError('An error occurred while fetching data');
     }
   };
@@ -70,7 +70,7 @@ export default function AdminGroupsClientPage() {
 
         // Fetch all groups (admin can see all)
         await fetchGroups();
-      } catch (err) {
+      } catch {
         setError('An error occurred while fetching data');
       } finally {
         setIsLoading(false);
