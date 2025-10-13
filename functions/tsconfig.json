@@ -1,4 +1,7 @@
 {
+  "// WARNING": "DO NOT COPY FROM PARENT TSCONFIG.JSON - THIS IS FOR CLOUD FUNCTIONS ONLY",
+  "// Purpose": "Compiles ONLY src/index.ts (Cloud Functions wrapper) to lib/index.js",
+  "// Not For": "Next.js app compilation - parent handles that separately",
   "compilerOptions": {
     "module": "commonjs",
     "noImplicitReturns": true,
@@ -7,38 +10,20 @@
     "sourceMap": true,
     "strict": true,
     "target": "es2017",
+    "lib": ["es2017"],
     "esModuleInterop": true,
     "skipLibCheck": true,
-    "lib": [
-      "dom",
-      "dom.iterable",
-      "esnext"
-    ],
-    "allowJs": true,
-    "noEmit": true,
-    "incremental": true,
     "moduleResolution": "node",
-    "resolveJsonModule": true,
-    "isolatedModules": true,
-    "jsx": "preserve",
-    "plugins": [
-      {
-        "name": "next"
-      }
-    ],
-    "paths": {
-      "@/*": ["./src/*"]
-    }
+    "resolveJsonModule": true
   },
   "compileOnSave": true,
   "include": [
-    "src/index.ts",
-    ".next/types/**/*.ts"
+    "src/index.ts"
   ],
   "exclude": [
+    "node_modules",
     "src/**/__tests__",
     "src/**/*.test.ts",
-    "src/app",
-    "node_modules"
+    "**/*.test.ts"
   ]
 }
