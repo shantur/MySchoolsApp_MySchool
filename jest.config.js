@@ -30,7 +30,13 @@ const customJestConfig = {
     'src/app/**/[*]__tests__/**/*.(test|spec).(ts|tsx|js)',
     'src/app/**/[*]/**/*.(test|spec).(ts|tsx|js)',
   ],
-  testPathIgnorePatterns: ['/node_modules/', '/functions/', '/.next/', '/tests/'],
+  testPathIgnorePatterns: [
+    '/node_modules/',
+    '/functions/',
+    '/.next/',
+    '/tests/',
+    '/src/app/api/', // Exclude API routes - they use jest.api.config.js
+  ],
   modulePathIgnorePatterns: ['/functions/', '/.next/'],
   moduleDirectories: ['node_modules', '<rootDir>/'],
   transformIgnorePatterns: [
