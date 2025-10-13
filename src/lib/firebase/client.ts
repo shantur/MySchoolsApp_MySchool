@@ -43,27 +43,28 @@ const auth: Auth = getAuth(app);
 const db: Firestore = getFirestore(app);
 const storage: FirebaseStorage = getStorage(app);
 
-// Connect to emulators in development
-if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
-  // Check if we should use emulators (can be controlled via env var)
-  const useEmulators = process.env.NEXT_PUBLIC_USE_FIREBASE_EMULATORS !== 'false';
-  
-  if (useEmulators) {
-    try {
-      // Auth emulator
-      connectAuthEmulator(auth, 'http://localhost:9099', { disableWarnings: true });
-      
-      // Firestore emulator
-      connectFirestoreEmulator(db, 'localhost', 8080);
-      
-      // Storage emulator
-      connectStorageEmulator(storage, 'localhost', 9199);
-      
-      console.log('Connected to Firebase Emulators');
-    } catch (error) {
-      // Emulators might already be connected, ignore error
-      console.warn('Firebase Emulators connection warning:', error);
-    }
+// Connect to emulators in development or when USE_FIREBASE_EMULATORS is explicitly set
+const shouldUseEmulators = 
+  (process.env.NODE_ENV === 'development' || process.env.USE_FIREBASE_EMULATORS === 'true') &&
+  typeof window !== 'undefined' &&
+  process.env.NEXT_PUBLIC_USE_FIREBASE_EMULATORS !== 'false';
+
+if (shouldUseEmulators) {
+  try {
+    // MySchoolWeb uses custom emulator ports (see firebase.json)
+    // Auth emulator - port 19099 (NOT 9099)
+    connectAuthEmulator(auth, 'http://localhost:19099', { disableWarnings: true });
+    
+    // Firestore emulator - port 18080 (NOT 8080)
+    connectFirestoreEmulator(db, 'localhost', 18080);
+    
+    // Storage emulator - port 19199 (NOT 9199)
+    connectStorageEmulator(storage, 'localhost', 19199);
+    
+    console.log('Connected to Firebase Emulators (custom ports: Auth 19099, Firestore 18080, Storage 19199)');
+  } catch (error) {
+    // Emulators might already be connected, ignore error
+    console.warn('Firebase Emulators connection warning:', error);
   }
 }
 
