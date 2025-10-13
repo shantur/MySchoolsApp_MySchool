@@ -135,6 +135,9 @@ describe('API Contract Validation - MySchool Data Management', () => {
     const mockFiles = new Map<string, any>();
 
     // Mock Firestore collection
+    if (!adminDb) {
+      throw new Error('adminDb is not initialized');
+    }
     (adminDb.collection as jest.Mock).mockImplementation(
       (collectionName: string) => {
         const mockAdd = jest.fn(async (data: any) => {
@@ -240,7 +243,14 @@ describe('API Contract Validation - MySchool Data Management', () => {
         const whereFilters: Array<{ field: string; op: string; value: any }> =
           [];
 
-        const mockWhere = jest.fn((field: string, op: string, value: any) => {
+        // Define explicit types to avoid circular reference errors
+        type MockQueryReturn = {
+          where: jest.Mock;
+          orderBy: jest.Mock;
+          get: jest.Mock;
+        };
+
+        const mockWhere: jest.Mock<MockQueryReturn, [string, string, any]> = jest.fn((field: string, op: string, value: any) => {
           whereFilters.push({ field, op, value });
           return {
             where: mockWhere,
@@ -249,7 +259,7 @@ describe('API Contract Validation - MySchool Data Management', () => {
           };
         });
 
-        const mockOrderBy = jest.fn(() => ({
+        const mockOrderBy: jest.Mock<MockQueryReturn, []> = jest.fn(() => ({
           where: mockWhere,
           orderBy: mockOrderBy,
           get: mockGet,
@@ -308,6 +318,9 @@ describe('API Contract Validation - MySchool Data Management', () => {
     );
 
     // Mock Firebase Storage
+    if (!adminStorage) {
+      throw new Error('adminStorage is not initialized');
+    }
     (adminStorage.bucket as jest.Mock).mockReturnValue({
       file: jest.fn((path: string) => ({
         save: jest.fn(async (buffer: Buffer, options: any) => {
@@ -715,7 +728,7 @@ describe('API Contract Validation - MySchool Data Management', () => {
     describe('3.1 Notices CRUD Operations', () => {
       it('should allow admin to create a notice', async () => {
         const result = await createNoticeHandler(adminSession, {
-          schoolId: schoolAId,
+          groupId: _groupAId,
           title: 'Important Announcement',
           body: 'This is the notice content',
           status: 'published',
@@ -726,6 +739,7 @@ describe('API Contract Validation - MySchool Data Management', () => {
         const notice = result.notice!;
         expect(notice).toHaveProperty('noticeId');
         expect(notice.schoolId).toBe(schoolAId);
+        expect(notice.groupId).toBe(_groupAId);
         expect(notice.title).toBe('Important Announcement');
         expect(notice.body).toBe('This is the notice content');
         expect(notice.status).toBe('published');
@@ -737,7 +751,7 @@ describe('API Contract Validation - MySchool Data Management', () => {
 
       it('should prevent non-admin from creating a notice', async () => {
         const result = await createNoticeHandler(userSession, {
-          schoolId: schoolAId,
+          groupId: _groupAId,
           title: 'Unauthorized Notice',
           body: 'Content',
           status: 'published',
@@ -751,17 +765,17 @@ describe('API Contract Validation - MySchool Data Management', () => {
 
       it('should validate required fields when creating a notice', async () => {
         let result = await createNoticeHandler(adminSession, {
-          schoolId: '',
+          groupId: '',
           title: 'Test',
           body: 'Content',
           status: 'published',
         });
         
         expect(result.success).toBe(false);
-        expect(result.error?.message).toBe('School ID is required');
+        expect(result.error?.message).toBe('Group ID is required');
 
         result = await createNoticeHandler(adminSession, {
-            schoolId: schoolAId,
+            groupId: _groupAId,
             title: '',
             body: 'Content',
             status: 'published',
@@ -771,7 +785,7 @@ describe('API Contract Validation - MySchool Data Management', () => {
         expect(result.error?.message).toBe('Notice title is required');
 
         result = await createNoticeHandler(adminSession, {
-            schoolId: schoolAId,
+            groupId: _groupAId,
             title: 'Test',
             body: '',
             status: 'published',
@@ -783,7 +797,7 @@ describe('API Contract Validation - MySchool Data Management', () => {
 
       it('should allow admin to create notice with draft status', async () => {
         const result = await createNoticeHandler(adminSession, {
-          schoolId: schoolAId,
+          groupId: _groupAId,
           title: 'Draft Notice',
           body: 'Draft content',
           status: 'draft',
@@ -794,12 +808,15 @@ describe('API Contract Validation - MySchool Data Management', () => {
       });
 
       it('should allow admin to read any notice', async () => {
-        const notice = await createNoticeHandler(adminSession, {
-          schoolId: schoolAId,
+        const result = await createNoticeHandler(adminSession, {
+          groupId: _groupAId,
           title: 'Test Notice',
           body: 'Content',
           status: 'published',
         });
+        
+        expect(result.success).toBe(true);
+        const notice = result.notice!;
 
         const retrieved = await getNoticeHandler(
           adminSession,
@@ -813,7 +830,7 @@ describe('API Contract Validation - MySchool Data Management', () => {
 
       it('should allow user to read published notices in their school', async () => {
         const noticeResult = await createNoticeHandler(adminSession, {
-          schoolId: schoolAId,
+          groupId: _groupAId,
           title: 'Published Notice',
           body: 'Content',
           status: 'published',
@@ -836,7 +853,7 @@ describe('API Contract Validation - MySchool Data Management', () => {
 
       it('should allow admin to update notice status', async () => {
         const noticeResult = await createNoticeHandler(adminSession, {
-          schoolId: schoolAId,
+          groupId: _groupAId,
           title: 'Test Notice',
           body: 'Content',
           status: 'draft',
@@ -857,12 +874,15 @@ describe('API Contract Validation - MySchool Data Management', () => {
       });
 
       it('should prevent non-admin from updating a notice', async () => {
-        const notice = await createNoticeHandler(adminSession, {
-          schoolId: schoolAId,
+        const result = await createNoticeHandler(adminSession, {
+          groupId: _groupAId,
           title: 'Protected Notice',
           body: 'Content',
           status: 'published',
         });
+        
+        expect(result.success).toBe(true);
+        const notice = result.notice!;
 
         await expect(
           updateNoticeHandler(userSession, notice.noticeId, {
@@ -873,7 +893,7 @@ describe('API Contract Validation - MySchool Data Management', () => {
 
       it('should allow admin to delete a notice', async () => {
         const noticeResult = await createNoticeHandler(adminSession, {
-          schoolId: schoolAId,
+          groupId: _groupAId,
           title: 'To Be Deleted',
           body: 'Content',
           status: 'published',
@@ -893,12 +913,15 @@ describe('API Contract Validation - MySchool Data Management', () => {
       });
 
       it('should prevent non-admin from deleting a notice', async () => {
-        const notice = await createNoticeHandler(adminSession, {
-          schoolId: schoolAId,
+        const result = await createNoticeHandler(adminSession, {
+          groupId: _groupAId,
           title: 'Protected Notice',
           body: 'Content',
           status: 'published',
         });
+        
+        expect(result.success).toBe(true);
+        const notice = result.notice!;
 
         await expect(
           deleteNoticeHandler(userSession, notice.noticeId)
@@ -909,13 +932,13 @@ describe('API Contract Validation - MySchool Data Management', () => {
     describe('3.2 Notices List Operations (RLS & Status Filtering)', () => {
       it('should return all notices for admin (all statuses)', async () => {
         const publishedResult = await createNoticeHandler(adminSession, {
-          schoolId: schoolAId,
+          groupId: _groupAId,
           title: 'Published',
           body: 'Content',
           status: 'published',
         });
         const draftResult = await createNoticeHandler(adminSession, {
-          schoolId: schoolAId,
+          groupId: _groupAId,
           title: 'Draft',
           body: 'Content',
           status: 'draft',
@@ -934,13 +957,13 @@ describe('API Contract Validation - MySchool Data Management', () => {
 
       it('should return only published notices for regular user', async () => {
         const publishedResult = await createNoticeHandler(adminSession, {
-          schoolId: schoolAId,
+          groupId: _groupAId,
           title: 'Published',
           body: 'Content',
           status: 'published',
         });
         const draftResult = await createNoticeHandler(adminSession, {
-          schoolId: schoolAId,
+          groupId: _groupAId,
           title: 'Draft',
           body: 'Content',
           status: 'draft',
@@ -964,13 +987,13 @@ describe('API Contract Validation - MySchool Data Management', () => {
 
       it('should filter notices by status for admin', async () => {
         await createNoticeHandler(adminSession, {
-          schoolId: schoolAId,
+          groupId: _groupAId,
           title: 'Published 1',
           body: 'Content',
           status: 'published',
         });
         await createNoticeHandler(adminSession, {
-          schoolId: schoolAId,
+          groupId: _groupAId,
           title: 'Draft 1',
           body: 'Content',
           status: 'draft',
@@ -1014,7 +1037,7 @@ describe('API Contract Validation - MySchool Data Management', () => {
         ];
 
         const result = await createNoticeHandler(adminSession, {
-          schoolId: schoolAId,
+          groupId: _groupAId,
           title: 'Notice with Attachments',
           body: 'See attached files',
           status: 'published',
@@ -1028,7 +1051,7 @@ describe('API Contract Validation - MySchool Data Management', () => {
 
       it('should update notice to add attachments', async () => {
         const noticeResult = await createNoticeHandler(adminSession, {
-          schoolId: schoolAId,
+          groupId: _groupAId,
           title: 'Notice',
           body: 'Content',
           status: 'published',
@@ -1043,6 +1066,7 @@ describe('API Contract Validation - MySchool Data Management', () => {
           {
             attachments: [
               {
+                id: 'attach789',
                 fileName: 'added.pdf',
                 fileType: 'application/pdf',
                 downloadURL: '/api/attachments/download/attach789',
@@ -1052,8 +1076,8 @@ describe('API Contract Validation - MySchool Data Management', () => {
           }
         );
 
-        expect(updated.attachments).toHaveLength(1);
-        expect(updated.attachments[0].fileName).toBe('added.pdf');
+        expect(updated.attachments!).toHaveLength(1);
+        expect(updated.attachments![0].fileName).toBe('added.pdf');
       });
     });
   });
@@ -1070,13 +1094,14 @@ describe('API Contract Validation - MySchool Data Management', () => {
       });
       schoolAId = school.schoolId;
 
-      const notice = await createNoticeHandler(adminSession, {
-        schoolId: schoolAId,
+      const result = await createNoticeHandler(adminSession, {
+        groupId: _groupAId,
         title: 'Notice with Files',
         body: 'Content',
         status: 'published',
       });
-      noticeAId = notice.noticeId;
+      expect(result.success).toBe(true);
+      noticeAId = result.notice!.noticeId;
     });
 
     describe('4.1 Attachment Upload', () => {
@@ -1179,7 +1204,7 @@ describe('API Contract Validation - MySchool Data Management', () => {
         });
 
         const downloadUrl = await attachmentsService.getAttachmentDownloadUrl(
-          attachment.attachmentId,
+          attachment.id,
           schoolAId,
           noticeAId
         );
@@ -1202,7 +1227,7 @@ describe('API Contract Validation - MySchool Data Management', () => {
 
         await expect(
           attachmentsService.deleteAttachment(
-            attachment.attachmentId,
+            attachment.id,
             schoolAId,
             noticeAId
           )
@@ -1234,7 +1259,7 @@ describe('API Contract Validation - MySchool Data Management', () => {
 
       // Step 3: Create a notice with draft status
       const noticeResult = await createNoticeHandler(adminSession, {
-        schoolId: school.schoolId,
+        groupId: group1.groupId,
         title: 'Important Announcement',
         body: 'Please review the attached documents.',
         status: 'draft',
@@ -1269,12 +1294,14 @@ describe('API Contract Validation - MySchool Data Management', () => {
           status: 'published',
           attachments: [
             {
+              id: attachment1.id || 'att1',
               fileName: attachment1.fileName,
               fileType: attachment1.fileType,
               downloadURL: attachment1.downloadURL,
               size: attachment1.size,
             },
             {
+              id: attachment2.id || 'att2',
               fileName: attachment2.fileName,
               fileType: attachment2.fileType,
               downloadURL: attachment2.downloadURL,
@@ -1289,7 +1316,7 @@ describe('API Contract Validation - MySchool Data Management', () => {
       // Step 6: Verify user access (User should see published notice)
       const testUser = {
         ...userSession,
-        schoolId: school.schoolId,
+        groupId: notice.groupId || _groupAId,
         groupIds: [group1.groupId],
       };
 
@@ -1349,7 +1376,7 @@ describe('API Contract Validation - MySchool Data Management', () => {
 
       // Notices: Create, Update, Delete
       const noticeResult = await createNoticeHandler(userSession, {
-        schoolId: schoolAId,
+        groupId: _groupAId,
         title: 'Notice',
         body: 'Content',
         status: 'published',
@@ -1399,7 +1426,7 @@ describe('API Contract Validation - MySchool Data Management', () => {
         group1.groupId,
         schoolAId
       );
-      expect(retrieved.groupId).toBe(group1.groupId);
+      expect(retrieved?.groupId).toBe(group1.groupId);
 
       // User cannot access group2
       await expect(
@@ -1425,7 +1452,7 @@ describe('API Contract Validation - MySchool Data Management', () => {
 
       // Empty notice fields
       const result = await createNoticeHandler(adminSession, {
-        schoolId: '',
+        groupId: '',
         title: 'Test',
         body: 'Content',
         status: 'published',
@@ -1501,7 +1528,7 @@ describe('API Contract Validation - MySchool Data Management', () => {
       });
 
       const noticeResult = await createNoticeHandler(adminSession, {
-        schoolId: school.schoolId,
+        groupId: group.groupId,
         title: 'Test Notice',
         body: 'Content',
         status: 'published',
