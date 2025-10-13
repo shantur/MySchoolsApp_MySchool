@@ -65,6 +65,9 @@ jobs:
       - name: Build Next.js for emulators
         run: npm run build
 
+      - name: Copy Next.js build to functions directory
+        run: npm run copy-next
+
       - name: Build Cloud Functions for emulators
         run: |
           cd functions
