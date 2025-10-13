@@ -62,6 +62,9 @@ jobs:
         continue-on-error: true
         timeout-minutes: 5
 
+      - name: Build Next.js for emulators
+        run: npm run build
+
       - name: Build Cloud Functions for emulators
         run: |
           cd functions

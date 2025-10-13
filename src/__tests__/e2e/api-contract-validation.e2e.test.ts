@@ -134,11 +134,13 @@ describe('API Contract Validation - MySchool Data Management', () => {
     const mockNotices = new Map<string, any>();
     const mockFiles = new Map<string, any>();
 
-    // Mock Firestore collection
+    // Mock Firestore collection with null check
     if (!adminDb) {
       throw new Error('adminDb is not initialized');
     }
-    (adminDb.collection as jest.Mock).mockImplementation(
+    
+    const db = adminDb; // Type-safe reference
+    (db.collection as jest.Mock).mockImplementation(
       (collectionName: string) => {
         const mockAdd = jest.fn(async (data: any) => {
           const id = `${collectionName}_${Date.now()}_${Math.random()}`;
@@ -250,7 +252,12 @@ describe('API Contract Validation - MySchool Data Management', () => {
           get: jest.Mock;
         };
 
-        const mockWhere: jest.Mock<MockQueryReturn, [string, string, any]> = jest.fn((field: string, op: string, value: any) => {
+        // Pre-declare mock functions with explicit types to avoid circular references
+        const mockWhere: jest.Mock<MockQueryReturn, [string, string, any]> = jest.fn();
+        const mockOrderBy: jest.Mock<MockQueryReturn, []> = jest.fn();
+
+        // Implement mock functions after declaration
+        mockWhere.mockImplementation((field: string, op: string, value: any): MockQueryReturn => {
           whereFilters.push({ field, op, value });
           return {
             where: mockWhere,
@@ -259,7 +266,7 @@ describe('API Contract Validation - MySchool Data Management', () => {
           };
         });
 
-        const mockOrderBy: jest.Mock<MockQueryReturn, []> = jest.fn(() => ({
+        mockOrderBy.mockImplementation((): MockQueryReturn => ({
           where: mockWhere,
           orderBy: mockOrderBy,
           get: mockGet,
