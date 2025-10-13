@@ -82,8 +82,17 @@ jobs:
           echo "EMULATOR_PID=$EMULATOR_PID" >> $GITHUB_ENV
           
           # Wait for emulators to be ready (check root endpoint, not /health)
+          echo "Waiting for Firebase Emulators to start..."
           timeout 60 bash -c 'until curl -sf http://localhost:15001/ > /dev/null 2>&1; do echo "Waiting for emulators..."; sleep 2; done'
-          echo "Firebase Emulators are ready"
+          echo "Firebase Emulators are ready!"
+          echo ""
+          echo "=== Emulator Health Check ==="
+          echo "Functions Emulator Response:"
+          curl -s http://localhost:15001/ || echo "Failed to get response"
+          echo ""
+          echo "Firestore Emulator Status:"
+          curl -s http://localhost:18080/ || echo "Failed to get response"
+          echo ""
 
       - name: Run E2E tests
         run: npm run test:e2e
