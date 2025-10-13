@@ -30,7 +30,11 @@ export default defineConfig({
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
     /* Base URL to use in actions like `await page.goto('/')`. */
-    baseURL: 'http://localhost:3000',
+    // Use Firebase Hosting emulator (port 15000) when USE_FIREBASE_EMULATORS is set (CI),
+    // otherwise use local dev server (port 3000)
+    baseURL: process.env.USE_FIREBASE_EMULATORS === 'true' 
+      ? 'http://localhost:15000' 
+      : 'http://localhost:3000',
     
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
     trace: 'on-first-retry',
@@ -74,7 +78,9 @@ export default defineConfig({
   ],
 
   /* Run your local dev server before starting the tests */
-  webServer: {
+  // Only start dev server if not using Firebase Emulators (local development)
+  // In CI with emulators, the Firebase Hosting emulator is already running
+  webServer: process.env.USE_FIREBASE_EMULATORS === 'true' ? undefined : {
     command: 'npm run dev',
     url: 'http://localhost:3000',
     reuseExistingServer: !process.env.CI,
