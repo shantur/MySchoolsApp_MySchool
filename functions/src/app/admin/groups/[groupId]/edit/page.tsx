@@ -22,7 +22,7 @@ export default function EditGroupPage() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [_error, _setError] = useState<string | null>(null);
   const router = useRouter();
   const params = useParams();
   const groupId = params.groupId as string;
@@ -36,7 +36,7 @@ export default function EditGroupPage() {
   useEffect(() => {
     const fetchGroup = async () => {
       try {
-        const response = await apiGet(`/api/admin/groups/${groupId}`);
+        const response = await apiGet<{ group: Group }>(`/api/admin/groups/${groupId}`);
         
         if (!response.success) {
           setErrors({ form: response.error || 'Failed to fetch group' });
@@ -44,14 +44,14 @@ export default function EditGroupPage() {
           return;
         }
 
-        const group: Group = response.data.group;
+        const group: Group = response.data!.group;
         
         setOriginalGroup(group);
         setFormData({
           name: group.name,
           description: group.description || '',
         });
-      } catch (err) {
+      } catch {
         setErrors({ form: 'An error occurred while fetching the group' });
       } finally {
         setIsLoading(false);
@@ -107,7 +107,7 @@ export default function EditGroupPage() {
 
       // Redirect to groups list
       router.push('/admin/groups');
-    } catch (error) {
+    } catch {
       setErrors({ form: 'An error occurred. Please try again.' });
       setIsSaving(false);
     }

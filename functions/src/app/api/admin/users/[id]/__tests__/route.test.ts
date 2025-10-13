@@ -1,6 +1,7 @@
 /**
  * Tests for /api/admin/users/[id] route
  */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { NextRequest } from 'next/server';
 import { GET, PUT, DELETE } from '../route';

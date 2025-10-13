@@ -76,6 +76,8 @@ const Dialog: React.FC<DialogProps> = ({ open, onClose, title, children, classNa
         }
       };
     }
+    
+    return undefined;
   }, [open, onClose]);
 
   if (!open) return null;

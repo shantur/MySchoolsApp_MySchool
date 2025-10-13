@@ -186,7 +186,7 @@ export default function DesignSystemDemo() {
         <div className="space-y-8">
           <div>
             <h3 className="title-large text-on-surface mb-4">Cards</h3>
-            <Grid cols={3 as any} gap="large">
+            <Grid cols={3} gap="large">
               <Card>
                 <CardHeader>
                   <CardTitle>Basic Card</CardTitle>

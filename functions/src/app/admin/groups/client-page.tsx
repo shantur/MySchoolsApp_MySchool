@@ -33,7 +33,7 @@ export default function AdminGroupsClientPage() {
       const url = schoolId && schoolId !== 'all' 
         ? `/api/admin/groups?schoolId=${schoolId}`
         : '/api/admin/groups';
-      const groupsResponse = await apiGet(url);
+      const groupsResponse = await apiGet<{ data?: { groups?: Group[] } }>(url);
       
       if (!groupsResponse.success) {
         setError(groupsResponse.error || 'Failed to fetch groups');
@@ -41,7 +41,7 @@ export default function AdminGroupsClientPage() {
       }
 
       setGroups(groupsResponse.data?.data?.groups || []);
-    } catch (err) {
+    } catch {
       setError('An error occurred while fetching data');
     }
   };
@@ -63,14 +63,14 @@ export default function AdminGroupsClientPage() {
         setUserEmail(email);
 
         // Fetch all schools
-        const schoolsResponse = await apiGet('/api/admin/schools');
+        const schoolsResponse = await apiGet<{ schools?: School[] }>('/api/admin/schools');
         if (schoolsResponse.success && schoolsResponse.data?.schools) {
           setSchools(schoolsResponse.data.schools);
         }
 
         // Fetch all groups (admin can see all)
         await fetchGroups();
-      } catch (err) {
+      } catch {
         setError('An error occurred while fetching data');
       } finally {
         setIsLoading(false);

@@ -32,7 +32,7 @@ export default defineConfig({
   /* Shared settings for all the projects below */
   use: {
     /* Base URL to use - Cloud Functions hosting emulator */
-    baseURL: 'http://localhost:15000',
+    baseURL: 'http://127.0.0.1:15001/myschools-app-dev/us-central1/nextjsFunc',
     
     /* Collect trace when retrying the failed test */
     trace: 'on-first-retry',

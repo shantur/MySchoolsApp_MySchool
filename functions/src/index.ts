@@ -8,9 +8,9 @@ if (!admin.apps.length) {
 }
 
 // Initialize Next.js app (once at module load, NOT per-request)
-const isDev = process.env.NODE_ENV !== 'production';
+// Force production mode for Cloud Functions (development mode requires source files)
 const nextApp = next({
-  dev: isDev,
+  dev: false, // Always use production mode in Cloud Functions
   // Set the directory to the functions folder where .next is located
   dir: __dirname + '/..',
   conf: {
@@ -64,7 +64,7 @@ export const nextjsFunc = functions
       if (!res.headersSent) {
         res.status(500).json({
           error: 'Internal Server Error',
-          message: isDev && error instanceof Error ? error.message : 'An error occurred processing your request',
+          message: error instanceof Error ? error.message : 'An error occurred processing your request',
         });
       }
     }

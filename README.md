@@ -128,10 +128,36 @@ Choose one of the following:
 ### Other Configuration
 - `NODE_ENV` - Environment (development/production)
 - `USE_FIREBASE_EMULATORS` - Whether to use emulators (default: true in development)
+- `SESSION_SECRET` - JWT signing secret (64+ characters recommended)
+
+### Emulator Detection Strategy
+
+**Client SDK (Browser-side):**
+- Checks: `NODE_ENV === 'development'` AND `NEXT_PUBLIC_USE_FIREBASE_EMULATORS !== 'false'`
+- Connects to emulators: Auth (19099), Firestore (18080), Storage (19199)
+
+**Admin SDK (Server-side):**
+- Checks: `(NODE_ENV === 'development' || NODE_ENV === 'test')` AND `USE_FIREBASE_EMULATORS === 'true'`
+- Connects to emulators: Auth (19099), Firestore (18080)
+
+**Cloud Functions:**
+- Always runs in production mode (`NODE_ENV=production`)
+- Emulator connection determined by `USE_FIREBASE_EMULATORS` at runtime
+- See [Firebase Emulator Mode Strategy](../docs/devops/firebase_emulator_dev_prod_mode_strategy.md) for details
 
 ## Cloud Functions Setup
 
 This project uses Firebase Cloud Functions to handle Server-Side Rendering (SSR) for the Next.js application.
+
+### Development vs. Production Mode Strategy
+
+**Important:** Firebase Cloud Functions always run Next.js in **production mode** (using the pre-built `.next` directory). This applies to both emulator testing and production deployment. This ensures production parity and optimal performance, but requires running `npm run build:functions` after any code changes.
+
+For rapid development with hot reload, use the standard Next.js development server (`npm run dev`). This runs Next.js in development mode with hot module replacement, but does not test Cloud Functions behavior.
+
+**See Also:** 
+- [Firebase Emulator Mode Strategy](../docs/devops/firebase_emulator_dev_prod_mode_strategy.md) - Comprehensive strategy and rationale
+- [MySchoolWeb Implementation Details](../docs/devops/myschoolweb_emulator_implementation_details.md) - MySchoolWeb-specific implementation details
 
 ### Prerequisites
 

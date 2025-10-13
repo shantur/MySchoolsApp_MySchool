@@ -13,6 +13,14 @@ interface SchoolData {
   contactPhone?: string;
 }
 
+interface SchoolResponse {
+  schoolId: string;
+  name: string;
+  address?: string;
+  contactEmail?: string;
+  contactPhone?: string;
+}
+
 export default function EditSchoolPage() {
   const router = useRouter();
   const params = useParams();
@@ -48,16 +56,18 @@ export default function EditSchoolPage() {
       if (!apiResponse.success || !apiResponse.school) {
         throw new Error('Invalid API response format');
       }
+      const school = apiResponse.school as SchoolResponse;
       const schoolData: SchoolData = {
-        schoolId: apiResponse.school.schoolId,
-        name: apiResponse.school.name,
-        address: apiResponse.school.address || '',
-        contactEmail: apiResponse.school.contactEmail || '',
-        contactPhone: (apiResponse.school as any).contactPhone || '',
+        schoolId: school.schoolId,
+        name: school.name,
+        address: school.address || '',
+        contactEmail: school.contactEmail || '',
+        contactPhone: school.contactPhone || '',
       };
       setFormData(schoolData);
-    } catch (err: any) {
-      setError(err.message || 'Error fetching school data.');
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Error fetching school data.';
+      setError(errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -110,8 +120,9 @@ export default function EditSchoolPage() {
 
       setSuccess(`School "${formData.name}" updated successfully.`);
       // Optionally redirect or update local state
-    } catch (err: any) {
-      setError(err.message || 'An error occurred while saving.');
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'An error occurred while saving.';
+      setError(errorMessage);
     } finally {
       setIsSaving(false);
     }
@@ -133,8 +144,9 @@ export default function EditSchoolPage() {
 
       setSuccess(`School "${formData.name}" successfully deleted.`);
       router.push('/admin/schools'); // Redirect after successful deletion
-    } catch (err: any) {
-      setError(err.message || 'An error occurred during deletion.');
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'An error occurred during deletion.';
+      setError(errorMessage);
     } finally {
       setIsDeleting(false);
       setShowDeleteConfirm(false);

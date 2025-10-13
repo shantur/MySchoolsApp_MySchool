@@ -16,9 +16,9 @@ on:
 # Environment variables for the workflow
 env:
   NODE_VERSION: 18
-  FIREBASE_PROJECT_DEV: myschools-app-dev
-  FIREBASE_PROJECT_STAGING: myschools-app-staging
-  FIREBASE_PROJECT_PROD: myschools-app-prod
+  FIREBASE_PROJECT_DEV: myschoolweb-19261
+  FIREBASE_PROJECT_STAGING: myschoolweb-19261
+  FIREBASE_PROJECT_PROD: myschoolweb-19261
   DEPLOYMENT_SIZE_THRESHOLD_MB: 350
 
 jobs:

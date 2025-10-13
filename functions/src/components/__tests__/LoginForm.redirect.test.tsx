@@ -2,6 +2,7 @@
  * Test for LoginForm Redirect Logic
  * Tests that admin users are redirected to admin dashboard
  */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { useRouter } from 'next/navigation';

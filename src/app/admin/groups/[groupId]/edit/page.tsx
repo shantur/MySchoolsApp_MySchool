@@ -36,7 +36,7 @@ export default function EditGroupPage() {
   useEffect(() => {
     const fetchGroup = async () => {
       try {
-        const response = await apiGet(`/api/admin/groups/${groupId}`);
+        const response = await apiGet<{ group: Group }>(`/api/admin/groups/${groupId}`);
         
         if (!response.success) {
           setErrors({ form: response.error || 'Failed to fetch group' });
@@ -44,7 +44,7 @@ export default function EditGroupPage() {
           return;
         }
 
-        const group: Group = response.data.group;
+        const group: Group = response.data!.group;
         
         setOriginalGroup(group);
         setFormData({

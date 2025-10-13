@@ -45,15 +45,20 @@ export async function apiClient<T = unknown>(
   } = config;
 
   try {
-    const response = await fetch(url, {
+    const fetchOptions: RequestInit = {
       method,
       headers: {
         'Content-Type': 'application/json',
         ...headers
       },
-      credentials,
-      ...(body && { body: JSON.stringify(body) })
-    });
+      credentials
+    };
+
+    if (body) {
+      fetchOptions.body = JSON.stringify(body);
+    }
+
+    const response = await fetch(url, fetchOptions);
 
     let responseData;
     const contentType = response.headers.get('content-type');

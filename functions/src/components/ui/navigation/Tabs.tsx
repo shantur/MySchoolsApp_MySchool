@@ -52,7 +52,6 @@ const Tabs: React.FC<TabsProps> = ({
   orientation = 'horizontal'
 }) => {
   const tabListRef = useRef<HTMLDivElement>(null);
-  const _activeTabData = tabs.find(tab => tab.id === activeTab);
   
   // Generate unique IDs for ARIA relationships
   const tabListId = `tablist-${Math.random().toString(36).substr(2, 9)}`;

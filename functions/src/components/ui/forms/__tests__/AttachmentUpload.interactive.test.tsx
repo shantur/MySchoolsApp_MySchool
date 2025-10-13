@@ -3,7 +3,7 @@
  * Tests that the uploadProgress variable is properly defined
  */
 
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, fireEvent } from '@testing-library/react';
 import AttachmentUpload from '../AttachmentUpload';
 
 describe('AttachmentUpload Interactive Elements', () => {
