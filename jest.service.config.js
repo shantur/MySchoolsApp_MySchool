@@ -17,6 +17,8 @@ const customJestConfig = {
     NODE_ENV: 'development',
     USE_FIREBASE_EMULATORS: 'true',
   },
+  // Explicit test timeout (10 seconds per test to prevent hangs)
+  testTimeout: 10000,
   collectCoverageFrom: [
     'src/**/*.{js,jsx,ts,tsx}',
     'middleware.ts',
