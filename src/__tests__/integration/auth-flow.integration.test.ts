@@ -7,7 +7,7 @@
  * @jest-environment node
  */
 
-import { _authenticateUser, _createUserAccount } from '@/lib/services/auth.service';
+import { authenticateUser as _authenticateUser, createUserAccount as _createUserAccount } from '@/lib/services/auth.service';
 import { createSession, validateSession } from '@/lib/auth/session';
 import { handleLogin } from '@/lib/auth/login-handler';
 import { handleCreateUser } from '@/lib/auth/create-user-handler';

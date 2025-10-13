@@ -39,9 +39,9 @@
  * ============================================================================
  */
 
-import { SchoolsService } from '../../lib/services/schools.service';
-import { GroupsService } from '../../lib/services/groups.service';
-import { NoticesService } from '../../lib/services/notices.service';
+import { SchoolsService as _SchoolsService } from '../../lib/services/schools.service';
+import { GroupsService as _GroupsService } from '../../lib/services/groups.service';
+import { NoticesService as _NoticesService } from '../../lib/services/notices.service';
 import { AttachmentsService } from '../../lib/services/attachments.service';
 import {
   createSchoolHandler,
