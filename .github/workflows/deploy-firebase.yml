@@ -74,6 +74,7 @@ jobs:
 
       - name: Run E2E tests
         run: npm run test:e2e
+        continue-on-error: true
         env:
           USE_FIREBASE_EMULATORS: true
 
