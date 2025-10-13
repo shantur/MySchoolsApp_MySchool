@@ -77,21 +77,36 @@ jobs:
       - name: Setup Firebase Emulators
         run: |
           npm install -g firebase-tools
-          firebase emulators:start --project=demo-myschoolweb --import=./emulator-data --export-on-exit=./emulator-data &
+          
+          # Start emulators and redirect output to log file for monitoring
+          firebase emulators:start --project=demo-myschoolweb --import=./emulator-data --export-on-exit=./emulator-data > /tmp/emulator.log 2>&1 &
           EMULATOR_PID=$!
           echo "EMULATOR_PID=$EMULATOR_PID" >> $GITHUB_ENV
           
-          # Wait for emulators to be ready (check root endpoint, not /health)
+          # Wait for "All emulators ready" message in logs (most reliable indicator)
           echo "Waiting for Firebase Emulators to start..."
-          timeout 60 bash -c 'until curl -sf http://localhost:15001/ > /dev/null 2>&1; do echo "Waiting for emulators..."; sleep 2; done'
-          echo "Firebase Emulators are ready!"
+          
+          if timeout 90 bash -c 'until grep -q "All emulators ready" /tmp/emulator.log 2>/dev/null; do echo "Waiting for emulators..."; sleep 2; done'; then
+            # Give emulators extra time to fully initialize HTTP endpoints after reporting ready
+            echo "Emulators reported ready, waiting 3 seconds for HTTP endpoints to stabilize..."
+            sleep 3
+            echo "Firebase Emulators are ready!"
+          else
+            echo "ERROR: Timeout waiting for emulators to start!"
+            echo "=== Emulator Log (all available) ==="
+            cat /tmp/emulator.log || echo "No log file found"
+            exit 1
+          fi
+          echo ""
+          echo "=== Emulator Startup Log (last 30 lines) ==="
+          tail -30 /tmp/emulator.log
           echo ""
           echo "=== Emulator Health Check ==="
-          echo "Functions Emulator Response:"
-          curl -s http://localhost:15001/ || echo "Failed to get response"
+          echo "Emulator Hub (14400):"
+          curl -s http://127.0.0.1:14400/ | head -5 || echo "Hub not responding"
           echo ""
-          echo "Firestore Emulator Status:"
-          curl -s http://localhost:18080/ || echo "Failed to get response"
+          echo "Firestore Emulator (18080):"
+          curl -s http://127.0.0.1:18080/ | head -5 || echo "Firestore not responding"
           echo ""
 
       - name: Run E2E tests
@@ -104,7 +119,16 @@ jobs:
         if: always()
         run: |
           if [ -n "$EMULATOR_PID" ]; then
+            echo "Stopping emulators (PID: $EMULATOR_PID)..."
             kill $EMULATOR_PID || true
+            sleep 2
+          fi
+          
+          # Show emulator logs if they exist (helpful for debugging)
+          if [ -f /tmp/emulator.log ]; then
+            echo "=== Final Emulator Log (last 50 lines) ==="
+            tail -50 /tmp/emulator.log
+            rm -f /tmp/emulator.log
           fi
 
       - name: Build Next.js application
