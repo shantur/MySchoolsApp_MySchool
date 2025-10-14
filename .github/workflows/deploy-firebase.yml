@@ -15,7 +15,7 @@ on:
 
 # Environment variables for the workflow
 env:
-  NODE_VERSION: 18
+  NODE_VERSION: 20
   FIREBASE_PROJECT_DEV: myschoolweb-19261
   FIREBASE_PROJECT_STAGING: myschoolweb-19261
   FIREBASE_PROJECT_PROD: myschoolweb-19261
@@ -299,6 +299,38 @@ jobs:
             echo "FIREBASE_PROJECT=${{ env.FIREBASE_PROJECT_DEV }}" >> $GITHUB_ENV
           fi
           echo "Deploying to Firebase project: $FIREBASE_PROJECT"
+
+      - name: Configure Cloud Functions environment variables
+        run: |
+          echo "📝 Creating Cloud Functions .env.yaml from GitHub Secrets..."
+          
+          cat > functions/.env.yaml << 'EOF'
+          # Cloud Functions Environment Variables (Auto-generated from GitHub Secrets)
+          # DO NOT EDIT - This file is generated during deployment
+          
+          # Firebase Client SDK Configuration
+          NEXT_PUBLIC_FIREBASE_API_KEY: "${{ secrets.NEXT_PUBLIC_FIREBASE_API_KEY }}"
+          NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: "${{ secrets.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN }}"
+          NEXT_PUBLIC_FIREBASE_PROJECT_ID: "${{ secrets.NEXT_PUBLIC_FIREBASE_PROJECT_ID }}"
+          NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: "${{ secrets.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET }}"
+          NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: "${{ secrets.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID }}"
+          NEXT_PUBLIC_FIREBASE_APP_ID: "${{ secrets.NEXT_PUBLIC_FIREBASE_APP_ID }}"
+          
+          # Application Configuration
+          SESSION_SECRET: "${{ secrets.SESSION_SECRET }}"
+          
+          # Runtime Configuration
+          USE_FIREBASE_EMULATORS: "false"
+          NODE_ENV: "production"
+          EOF
+          
+          echo "✅ Cloud Functions .env.yaml created"
+          echo "📊 Environment variables configured:"
+          echo "  - NEXT_PUBLIC_FIREBASE_API_KEY: $(echo '${{ secrets.NEXT_PUBLIC_FIREBASE_API_KEY }}' | cut -c1-10)..."
+          echo "  - NEXT_PUBLIC_FIREBASE_PROJECT_ID: ${{ secrets.NEXT_PUBLIC_FIREBASE_PROJECT_ID }}"
+          echo "  - SESSION_SECRET: $(echo '${{ secrets.SESSION_SECRET }}' | cut -c1-10)... (${#SESSION_SECRET} characters)"
+          echo "  - USE_FIREBASE_EMULATORS: false"
+          echo "  - NODE_ENV: production"
 
       - name: Deploy to Firebase Hosting and Functions
         uses: w9jds/firebase-action@master
