@@ -18,20 +18,39 @@ if (!admin.apps.length) {
   admin.initializeApp();
 }
 
-// Initialize Next.js app (once at module load, NOT per-request)
-// Force production mode for Cloud Functions (development mode requires source files)
-const nextApp = next({
-  dev: false, // Always use production mode in Cloud Functions
-  // Set the directory to the functions folder where .next is located
-  dir: __dirname + '/..',
-  conf: {
-    distDir: '.next', // Points to the .next folder within functions/
-  }
-});
+// Initialize Next.js app lazily (on first request, NOT at module load)
+// This prevents Firebase CLI from trying to load .next during deployment analysis
+let nextApp: ReturnType<typeof next> | null = null;
+let handle: ((req: Request, res: Response) => Promise<void>) | null = null;
+let preparePromise: Promise<void> | null = null;
 
-// Prepare Next.js app at module initialization
-const handle = nextApp.getRequestHandler();
-const preparePromise = nextApp.prepare();
+/**
+ * Lazy initialization of Next.js app.
+ * Called on first request to avoid loading .next during Firebase deployment analysis.
+ */
+async function initializeNextApp(): Promise<void> {
+  if (!nextApp) {
+    logger.info('Initializing Next.js app (first request)');
+    
+    // Force production mode for Cloud Functions (development mode requires source files)
+    nextApp = next({
+      dev: false, // Always use production mode in Cloud Functions
+      // Set the directory to the functions folder where .next is located
+      dir: __dirname + '/..',
+      conf: {
+        distDir: '.next', // Points to the .next folder within functions/
+      }
+    });
+    
+    handle = nextApp.getRequestHandler();
+    preparePromise = nextApp.prepare();
+  }
+  
+  // Wait for Next.js to be ready
+  if (preparePromise) {
+    await preparePromise;
+  }
+}
 
 /**
  * Cloud Function to handle Next.js SSR requests.
@@ -44,8 +63,8 @@ const preparePromise = nextApp.prepare();
  */
 export const nextjsFunc = onRequest(async (req: Request, res: Response) => {
   try {
-    // Ensure Next.js app is prepared before handling request
-    await preparePromise;
+    // Initialize Next.js on first request (lazy loading)
+    await initializeNextApp();
     
     // Log request for monitoring (structured logging)
     logger.info('Next.js request', {
@@ -54,8 +73,8 @@ export const nextjsFunc = onRequest(async (req: Request, res: Response) => {
       userAgent: req.headers['user-agent'],
     });
 
-    // Handle the request with Next.js
-    return handle(req, res);
+    // Handle the request with Next.js (handle is guaranteed to be non-null after initializeNextApp)
+    return handle!(req, res);
   } catch (error) {
     // Log error with structured logging
     logger.error('Next.js request error', {

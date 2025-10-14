@@ -252,25 +252,41 @@ jobs:
         with:
           name: build-artifacts
 
-      - name: Reinstall Cloud Functions dependencies
+      - name: Rebuild application for deployment
         run: |
-          echo "Reinstalling Cloud Functions dependencies to ensure proper SDK discovery..."
-          cd functions
-          npm ci --production
+          echo "🔨 Rebuilding Next.js and Cloud Functions for deployment..."
           
-          # Verify firebase-functions is installed and discoverable
-          if [ ! -d "node_modules/firebase-functions" ]; then
-            echo "❌ ERROR: firebase-functions not found after reinstall"
+          # Step 1: Build Next.js (fresh build in case artifacts are stale)
+          echo "Building Next.js application..."
+          npm run build
+          
+          # Step 2: Run full build:functions to prepare deployment package
+          echo "Preparing Cloud Functions deployment package..."
+          npm run build:functions
+          
+          # Step 3: Verify all required artifacts exist
+          echo "Verifying build artifacts..."
+          
+          if [ ! -d "functions/.next" ]; then
+            echo "❌ ERROR: functions/.next directory not found"
             exit 1
           fi
           
-          echo "✅ firebase-functions SDK location:"
-          ls -la node_modules/firebase-functions/package.json
+          if [ ! -f "functions/lib/index.js" ]; then
+            echo "❌ ERROR: functions/lib/index.js not found"
+            exit 1
+          fi
           
-          # Show version for verification
-          npm list firebase-functions
+          if [ ! -d "functions/node_modules/firebase-functions" ]; then
+            echo "❌ ERROR: firebase-functions not found in functions/node_modules"
+            exit 1
+          fi
           
-          cd ..
+          echo "✅ All deployment artifacts verified:"
+          echo "  - Next.js build: $(ls -d functions/.next)"
+          echo "  - Cloud Functions: $(ls functions/lib/index.js)"
+          echo "  - firebase-functions: $(cd functions && npm list firebase-functions 2>&1 | grep firebase-functions)"
+          echo "  - Deployment size: $(du -sh functions | cut -f1)"
 
       - name: Determine Firebase project
         run: |
