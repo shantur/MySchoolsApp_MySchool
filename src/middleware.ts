@@ -248,8 +248,11 @@ export function middleware(request: NextRequest) {
   
   // Get user session
   const session = getSession(request);
+  console.log(`[Middleware] Session retrieved:`, session ? 'Authenticated' : 'Not authenticated');
+  console.log(`[Middleware] Continuing with authorization checks...`);
   
   // Admin routes - require admin role
+  console.log(`[Middleware] Checking if ${pathname} matches /admin/**`);
   if (matchesPattern(pathname, '/admin/**')) {
     if (!session) {
       return redirectToLogin(request);
@@ -330,7 +333,11 @@ export function middleware(request: NextRequest) {
   }
   
   // Allow other routes (will be handled by Next.js 404 if they don't exist)
-  return NextResponse.next();
+  console.log(`[Middleware] No specific protection matched, allowing request to: ${pathname}`);
+  console.log(`[Middleware] About to call NextResponse.next()...`);
+  const response = NextResponse.next();
+  console.log(`[Middleware] NextResponse.next() returned, sending response`);
+  return response;
 }
 
 /**
