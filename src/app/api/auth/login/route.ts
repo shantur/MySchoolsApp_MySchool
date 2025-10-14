@@ -34,7 +34,14 @@ console.log('===== LOGIN ROUTE MODULE LOAD COMPLETE =====');
  * @param {NextRequest} request - Next.js request object
  * @return {Promise<NextResponse>} JSON response with user data or error
  */
+
+// Log BEFORE the function definition
+console.log('[Login Route] Defining POST function export...');
+
 export async function POST(request: NextRequest): Promise<NextResponse> {
+  // This should be the VERY FIRST thing that executes when the function is called
+  const entryLog = '[Login Route] 🚀🚀🚀 POST FUNCTION INVOKED 🚀🚀🚀';
+  console.log(entryLog);
   console.log('='.repeat(80));
   console.log('[Login Route] POST function called - ENTRY POINT');
   console.log('[Login Route] Request URL:', request.url);
