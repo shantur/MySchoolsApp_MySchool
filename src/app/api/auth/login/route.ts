@@ -1,3 +1,8 @@
+// IMMEDIATELY log - this should appear if the file is being parsed at all
+if (typeof console !== 'undefined') {
+  console.log('🔴🔴🔴 LOGIN ROUTE FILE BEING PARSED 🔴🔴🔴');
+}
+
 console.log('===== LOGIN ROUTE MODULE LOAD START =====');
 
 /**

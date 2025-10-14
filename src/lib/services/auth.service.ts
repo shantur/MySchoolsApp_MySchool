@@ -114,7 +114,23 @@ export async function authenticateUser(
     const authData = await authResponse.json();
     const uid = authData.localId;
     
+    console.log('[Auth Service] User authenticated via Firebase Auth, uid:', uid);
+    console.log('[Auth Service] TEMPORARY: Skipping Firestore lookup to test if this is causing the hang');
+    console.log('[Auth Service] Returning mock user session for testing');
+    
+    // TEMPORARY: Return mock session to test if Firestore access is causing the hang
+    return {
+      uid: uid,
+      email: email,
+      schoolId: 'test-school',
+      role: 'admin',
+      displayName: email,
+      groupIds: [],
+    };
+    
+    /* COMMENTED OUT TO TEST IF FIRESTORE IS CAUSING HANG
     // Fetch user data from Firestore using Admin SDK
+    await ensureFirebaseImports();
     const adminDb = getAdminDb();
     if (!adminDb) {
       console.error('Firebase Admin DB not initialized');
@@ -128,7 +144,7 @@ export async function authenticateUser(
       return null;
     }
     
-    const userData = userDoc.data() as User;
+    const userData = userDoc.data();
     
     return {
       uid: userData.uid,
@@ -138,6 +154,7 @@ export async function authenticateUser(
       displayName: userData.displayName,
       groupIds: userData.groupIds,
     };
+    */
   } catch (error) {
     // Invalid credentials or user not found
     console.error('Authentication failed:', error);
