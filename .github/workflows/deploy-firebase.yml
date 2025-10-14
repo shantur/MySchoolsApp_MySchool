@@ -311,7 +311,7 @@ jobs:
       - name: Deploy Firestore and Storage rules
         uses: w9jds/firebase-action@master
         with:
-          args: deploy --only firestore:rules,firestore:indexes,storage:rules --non-interactive --debug 2>&1
+          args: deploy --only firestore:rules,firestore:indexes,storage --non-interactive --debug 2>&1
         env:
           GCP_SA_KEY: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_DEV }}
           PROJECT_ID: ${{ env.FIREBASE_PROJECT }}
