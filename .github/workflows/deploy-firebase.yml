@@ -147,13 +147,27 @@ jobs:
       - name: Build Cloud Functions for deployment
         run: npm run build:functions
 
-      - name: Compile Cloud Functions TypeScript
+      - name: Verify Cloud Functions build artifacts
         run: |
-          cd functions
-          npm run build
-          cd ..
-          echo "✅ Cloud Functions TypeScript compiled to functions/lib/index.js"
-          ls -la functions/lib/
+          echo "✅ Verifying Cloud Functions build artifacts..."
+          if [ ! -f "functions/lib/index.js" ]; then
+            echo "❌ ERROR: functions/lib/index.js does not exist!"
+            echo "Contents of functions directory:"
+            ls -la functions/
+            echo ""
+            echo "Contents of functions/lib directory (if exists):"
+            ls -la functions/lib/ || echo "functions/lib/ directory does not exist"
+            exit 1
+          fi
+          echo "✅ Cloud Functions compiled successfully"
+          ls -lh functions/lib/index.js
+          
+          # Verify firebase-functions is installed
+          if [ ! -d "functions/node_modules/firebase-functions" ]; then
+            echo "❌ ERROR: firebase-functions package not found in functions/node_modules/"
+            exit 1
+          fi
+          echo "✅ firebase-functions package verified"
 
       - name: Check deployment size
         run: |
