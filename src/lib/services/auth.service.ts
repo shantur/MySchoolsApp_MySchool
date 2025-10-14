@@ -76,6 +76,7 @@ export async function authenticateUser(
     
     console.log(`[Auth Service] Using Firebase Auth endpoint: ${useEmulator ? 'EMULATOR' : 'PRODUCTION'}`);
     console.log(`[Auth Service] API Key present: ${!!apiKey}, length: ${apiKey?.length}`);
+    console.log(`[Auth Service] Full auth endpoint URL: ${authEndpoint}`);
     
     // Verify password using Firebase Auth REST API with timeout using Promise.race
     const fetchPromise = fetch(authEndpoint, {

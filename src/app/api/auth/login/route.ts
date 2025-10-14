@@ -30,54 +30,74 @@ console.log('===== LOGIN ROUTE MODULE LOAD COMPLETE =====');
  * @return {Promise<NextResponse>} JSON response with user data or error
  */
 export async function POST(request: NextRequest): Promise<NextResponse> {
-  console.log('[Login Route] POST function called');
+  console.log('='.repeat(80));
+  console.log('[Login Route] POST function called - ENTRY POINT');
+  console.log('[Login Route] Request URL:', request.url);
+  console.log('[Login Route] Request method:', request.method);
+  console.log('='.repeat(80));
   
-  // Parse request body
-  const body = await request.json();
-  console.log('[Login Route] Request body parsed');
-  const { email, password } = body;
-  console.log('[Login Route] Credentials extracted, calling handleLogin');
+  try {
+    // Parse request body
+    console.log('[Login Route] About to parse request body...');
+    const body = await request.json();
+    console.log('[Login Route] Request body parsed successfully');
+    const { email, password } = body;
+    console.log('[Login Route] Credentials extracted, email:', email);
+    console.log('[Login Route] About to call handleLogin...');
 
-  // Handle login
-  const result = await handleLogin(email, password);
-  console.log('[Login Route] handleLogin returned:', result.success);
+    // Handle login
+    const result = await handleLogin(email, password);
+    console.log('[Login Route] handleLogin returned:', result.success);
 
-  if (!result.success) {
-    const statusCode = result.error?.code === 'missing_credentials' ? 400 : 
-                       result.error?.code === 'invalid_credentials' ? 401 : 
-                       500;
+    if (!result.success) {
+      const statusCode = result.error?.code === 'missing_credentials' ? 400 : 
+                         result.error?.code === 'invalid_credentials' ? 401 : 
+                         500;
 
+      return NextResponse.json(
+        {
+          error: result.error?.message,
+          code: result.error?.code,
+        },
+        { status: statusCode }
+      );
+    }
+
+    // Create response with user data
+    const response = NextResponse.json(
+      {
+        success: true,
+        user: result.session,
+      },
+      { status: 200 }
+    );
+
+    // Set session cookie
+    const cookieValue = [
+      `${SESSION_CONFIG.cookieName}=${result.token}`,
+      `Max-Age=${SESSION_CONFIG.maxAge / 1000}`,
+      `Path=${SESSION_CONFIG.path}`,
+      `SameSite=${SESSION_CONFIG.sameSite}`,
+      'HttpOnly',
+      SESSION_CONFIG.secure ? 'Secure' : '',
+    ]
+      .filter(Boolean)
+      .join('; ');
+
+    response.headers.set('Set-Cookie', cookieValue);
+
+    console.log('[Login Route] Response prepared, returning...');
+    return response;
+    
+  } catch (error) {
+    console.error('[Login Route] FATAL ERROR in POST handler:', error);
+    console.error('[Login Route] Error stack:', error instanceof Error ? error.stack : 'No stack trace');
     return NextResponse.json(
       {
-        error: result.error?.message,
-        code: result.error?.code,
+        error: 'Internal server error during login',
+        details: error instanceof Error ? error.message : String(error)
       },
-      { status: statusCode }
+      { status: 500 }
     );
   }
-
-  // Create response with user data
-  const response = NextResponse.json(
-    {
-      success: true,
-      user: result.session,
-    },
-    { status: 200 }
-  );
-
-  // Set session cookie
-  const cookieValue = [
-    `${SESSION_CONFIG.cookieName}=${result.token}`,
-    `Max-Age=${SESSION_CONFIG.maxAge / 1000}`,
-    `Path=${SESSION_CONFIG.path}`,
-    `SameSite=${SESSION_CONFIG.sameSite}`,
-    'HttpOnly',
-    SESSION_CONFIG.secure ? 'Secure' : '',
-  ]
-    .filter(Boolean)
-    .join('; ');
-
-  response.headers.set('Set-Cookie', cookieValue);
-
-  return response;
 }
