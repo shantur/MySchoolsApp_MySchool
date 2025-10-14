@@ -26,7 +26,10 @@
     "rewrites": [
       {
         "source": "**",
-        "function": "nextjsFunc"
+        "function": {
+          "functionId": "nextjsFunc",
+          "region": "us-central1"
+        }
       }
     ]
   },
