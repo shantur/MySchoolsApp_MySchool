@@ -253,7 +253,7 @@ jobs:
           name: build-artifacts
 
       - name: Install Firebase CLI
-        run: npm install -g firebase-tools
+        run: npm install -g firebase-tools@13.20.2
 
       - name: Determine Firebase project
         run: |
