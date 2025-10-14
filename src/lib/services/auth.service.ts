@@ -51,25 +51,46 @@ export async function authenticateUser(
       ? `http://127.0.0.1:9099/identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${apiKey}`
       : `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${apiKey}`;
     
-    // Verify password using Firebase Auth REST API
-    const authResponse = await fetch(authEndpoint, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        email,
-        password,
-        returnSecureToken: true,
-      }),
-    });
+    console.log(`[Auth Service] Using Firebase Auth endpoint: ${useEmulator ? 'EMULATOR' : 'PRODUCTION'}`);
+    console.log(`[Auth Service] API Key present: ${!!apiKey}, length: ${apiKey?.length}`);
     
-    if (!authResponse.ok) {
-      const errorData = await authResponse.json();
-      console.error('Firebase Auth error:', errorData);
+    // Verify password using Firebase Auth REST API with timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+    
+    let authResponse;
+    try {
+      authResponse = await fetch(authEndpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email,
+          password,
+          returnSecureToken: true,
+        }),
+        signal: controller.signal,
+      });
+      
+      clearTimeout(timeoutId);
+    } catch (fetchError: unknown) {
+      clearTimeout(timeoutId);
+      if ((fetchError as Error).name === 'AbortError') {
+        console.error('[Auth Service] Firebase Auth request timed out after 10 seconds');
+      } else {
+        console.error('[Auth Service] Firebase Auth fetch error:', fetchError);
+      }
       return null;
     }
     
+    if (!authResponse.ok) {
+      const errorData = await authResponse.json();
+      console.error('[Auth Service] Firebase Auth error:', errorData);
+      return null;
+    }
+    
+    console.log('[Auth Service] Firebase Auth successful');
     const authData = await authResponse.json();
     const uid = authData.localId;
     
