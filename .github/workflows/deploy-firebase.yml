@@ -233,7 +233,7 @@ jobs:
           fi
           echo "Deploying to Firebase project: $FIREBASE_PROJECT"
 
-      - name: Set Firebase environment variables and authenticate
+      - name: Authenticate with Firebase using service account
         run: |
           # Decode and save service account for authentication
           if [ "${{ matrix.environment }}" == "production" ]; then
@@ -247,19 +247,16 @@ jobs:
           # Set GOOGLE_APPLICATION_CREDENTIALS for Firebase CLI authentication
           echo "GOOGLE_APPLICATION_CREDENTIALS=$HOME/gcloud-service-account.json" >> $GITHUB_ENV
           
-          # Set Firebase Functions config (session secret and app settings)
-          # NOTE: Admin SDK credentials are automatically provided by Cloud Functions runtime
-          # when deployed with a service account - no need to set them here
-          firebase functions:config:set \
-            session.secret="${{ secrets.SESSION_SECRET }}" \
-            app.use_emulators="false" \
-            app.environment="${{ matrix.environment }}" \
-            --project="$FIREBASE_PROJECT"
+          # NOTE: Firebase Functions config (session.secret, app.use_emulators, app.environment)
+          # should be set manually via Firebase Console or locally via:
+          # firebase functions:config:set session.secret="..." app.use_emulators="false" app.environment="production"
+          # This is a one-time setup and does NOT need to be set on every deployment
+          
+          echo "✅ Service account authenticated successfully"
         env:
           FIREBASE_SERVICE_ACCOUNT_DEV: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_DEV }}
           FIREBASE_SERVICE_ACCOUNT_STAGING: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_STAGING }}
           FIREBASE_SERVICE_ACCOUNT_PROD: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_PROD }}
-          SESSION_SECRET: ${{ secrets.SESSION_SECRET }}
 
       - name: Deploy to Firebase Hosting and Functions
         run: |
