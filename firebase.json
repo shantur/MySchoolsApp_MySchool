@@ -3,11 +3,16 @@
     "source": "functions",
     "runtime": "nodejs18",
     "ignore": [
-      "node_modules",
       ".git",
       "firebase-debug.log",
       "firebase-debug.*.log",
-      ".runtimeconfig.json"
+      ".runtimeconfig.json",
+      "src/__tests__",
+      "**/__tests__/**",
+      "**/*.test.ts",
+      "**/*.test.js",
+      "coverage",
+      "*.tsbuildinfo"
     ]
   },
   "hosting": {
