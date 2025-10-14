@@ -1,17 +1,17 @@
-import {onRequest} from 'firebase-functions/v2/https';
-import {setGlobalOptions} from 'firebase-functions/v2';
+import {onRequest, HttpsOptions} from 'firebase-functions/v2/https';
 import * as logger from 'firebase-functions/logger';
 import * as admin from 'firebase-admin';
 import next from 'next';
 import type {Request, Response} from 'express';
 
-// Set global options for all functions
-setGlobalOptions({
+// Define function options explicitly
+const FUNCTION_OPTIONS: HttpsOptions = {
   region: 'us-central1',
   memory: '2GiB',
   timeoutSeconds: 60,
-  maxInstances: 100, // Limit concurrent instances to control costs
-});
+  maxInstances: 100,
+  minInstances: 0,
+};
 
 // Initialize Firebase Admin SDK (once at module load)
 if (!admin.apps.length) {
@@ -55,13 +55,14 @@ async function initializeNextApp(): Promise<void> {
 /**
  * Cloud Function to handle Next.js SSR requests.
  * 
- * Configuration (set globally via setGlobalOptions):
+ * Configuration:
  * - Memory: 2GiB (Next.js SSR requires significant memory)
  * - Timeout: 60s (allows for cold starts and complex SSR)
  * - Region: us-central1 (default, can be changed based on user distribution)
  * - Max Instances: 100 (cost control)
+ * - Min Instances: 0 (scale to zero when not in use)
  */
-export const nextjsFunc = onRequest(async (req: Request, res: Response) => {
+export const nextjsFunc = onRequest(FUNCTION_OPTIONS, async (req: Request, res: Response) => {
   try {
     // Initialize Next.js on first request (lazy loading)
     await initializeNextApp();
