@@ -51,16 +51,6 @@
       ]
     },
     {
-      "collectionGroup": "schools",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "name",
-          "order": "ASCENDING"
-        }
-      ]
-    },
-    {
       "collectionGroup": "audit_logs",
       "queryScope": "COLLECTION",
       "fields": [
