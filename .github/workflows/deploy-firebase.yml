@@ -147,6 +147,14 @@ jobs:
       - name: Build Cloud Functions for deployment
         run: npm run build:functions
 
+      - name: Compile Cloud Functions TypeScript
+        run: |
+          cd functions
+          npm run build
+          cd ..
+          echo "✅ Cloud Functions TypeScript compiled to functions/lib/index.js"
+          ls -la functions/lib/
+
       - name: Check deployment size
         run: |
           SIZE_MB=$(du -sm functions | cut -f1)
