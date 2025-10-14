@@ -12,7 +12,7 @@
     "copy-src": "rm -rf functions/src/app functions/src/components functions/src/lib functions/src/middleware functions/src/middleware.ts && mkdir -p functions/src && cp -rL src/app functions/src/ && cp -rL src/components functions/src/ && cp -rL src/lib functions/src/ && if [ -d src/middleware ]; then cp -rL src/middleware functions/src/; fi && if [ -f src/middleware.ts ]; then cp -L src/middleware.ts functions/src/; fi",
     "copy-config": "cp next.config.js functions/ && cp tsconfig.json functions/tsconfig-parent.json",
     "install-deps": "cd functions && NODE_ENV=production npm ci --production && cd .. && npm run cleanup-deps",
-    "cleanup-deps": "find functions/node_modules/next/dist -name '*.map' -delete && rm -rf functions/node_modules/next/dist/bin functions/node_modules/next/dist/cli functions/node_modules/next/dist/trace functions/node_modules/next/dist/build/swc/nft-bindings functions/node_modules/@next/swc-* || true",
+    "cleanup-deps": "find functions/node_modules/next/dist -name '*.map' -delete && rm -rf functions/node_modules/next/dist/bin functions/node_modules/next/dist/cli functions/node_modules/next/dist/build/swc/nft-bindings functions/node_modules/@next/swc-* || true",
     "start": "next start",
     "lint": "next lint",
     "test": "jest",
