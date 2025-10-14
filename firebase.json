@@ -54,8 +54,5 @@
     "hub": {
       "port": 14400
     }
-  },
-  "remoteconfig": {
-    "template": "remoteconfig.template.json"
   }
 }
