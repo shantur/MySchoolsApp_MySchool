@@ -168,6 +168,17 @@ jobs:
             exit 1
           fi
           echo "✅ firebase-functions package verified"
+          
+          # Verify firebase-functions is in package.json dependencies
+          if ! grep -q '"firebase-functions"' functions/package.json; then
+            echo "❌ ERROR: firebase-functions not found in package.json dependencies"
+            exit 1
+          fi
+          echo "✅ firebase-functions in package.json"
+          
+          # Show firebase-functions version
+          cd functions && npm list firebase-functions && cd ..
+          echo "✅ All build artifacts verified"
 
       - name: Check deployment size
         run: |
@@ -303,7 +314,8 @@ jobs:
           firebase deploy \
             --project="$FIREBASE_PROJECT" \
             --only hosting,functions \
-            --non-interactive
+            --non-interactive \
+            --force
 
       - name: Deploy Firestore and Storage rules
         run: |
