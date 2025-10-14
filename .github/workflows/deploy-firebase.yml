@@ -299,52 +299,10 @@ jobs:
           fi
           echo "Deploying to Firebase project: $FIREBASE_PROJECT"
 
-      - name: Authenticate with Firebase using service account
-        run: |
-          # Decode and save service account for authentication
-          echo "Setting up service account for environment: ${{ matrix.environment }}"
-          
-          if [ "${{ matrix.environment }}" == "production" ]; then
-            if [ -z "$FIREBASE_SERVICE_ACCOUNT_PROD" ]; then
-              echo "❌ ERROR: FIREBASE_SERVICE_ACCOUNT_PROD is not set"
-              exit 1
-            fi
-            echo "$FIREBASE_SERVICE_ACCOUNT_PROD" | base64 -d > $HOME/gcloud-service-account.json
-          elif [ "${{ matrix.environment }}" == "staging" ]; then
-            if [ -z "$FIREBASE_SERVICE_ACCOUNT_STAGING" ]; then
-              echo "❌ ERROR: FIREBASE_SERVICE_ACCOUNT_STAGING is not set"
-              exit 1
-            fi
-            echo "$FIREBASE_SERVICE_ACCOUNT_STAGING" | base64 -d > $HOME/gcloud-service-account.json
-          else
-            if [ -z "$FIREBASE_SERVICE_ACCOUNT_DEV" ]; then
-              echo "❌ ERROR: FIREBASE_SERVICE_ACCOUNT_DEV is not set"
-              exit 1
-            fi
-            echo "$FIREBASE_SERVICE_ACCOUNT_DEV" | base64 -d > $HOME/gcloud-service-account.json
-          fi
-          
-          # Verify service account file was created
-          if [ ! -f "$HOME/gcloud-service-account.json" ]; then
-            echo "❌ ERROR: Service account file was not created"
-            exit 1
-          fi
-          
-          echo "✅ Service account file created at $HOME/gcloud-service-account.json"
-          
-          # Set GOOGLE_APPLICATION_CREDENTIALS for reference (will export in deploy steps)
-          echo "GOOGLE_APPLICATION_CREDENTIALS=$HOME/gcloud-service-account.json" >> $GITHUB_ENV
-          
-          echo "✅ Service account configured successfully"
-        env:
-          FIREBASE_SERVICE_ACCOUNT_DEV: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_DEV }}
-          FIREBASE_SERVICE_ACCOUNT_STAGING: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_STAGING }}
-          FIREBASE_SERVICE_ACCOUNT_PROD: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_PROD }}
-
       - name: Deploy to Firebase Hosting and Functions
         uses: w9jds/firebase-action@master
         with:
-          args: deploy --only hosting,functions --non-interactive --force
+          args: deploy --only hosting,functions --non-interactive --force --json
         env:
           GCP_SA_KEY: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_DEV }}
           PROJECT_ID: ${{ env.FIREBASE_PROJECT }}
@@ -356,14 +314,6 @@ jobs:
         env:
           GCP_SA_KEY: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_DEV }}
           PROJECT_ID: ${{ env.FIREBASE_PROJECT }}
-
-      - name: Cleanup service account file
-        if: always()
-        run: |
-          if [ -f "$HOME/gcloud-service-account.json" ]; then
-            rm -f $HOME/gcloud-service-account.json
-            echo "Service account file cleaned up"
-          fi
 
       - name: Post-deployment health check
         run: |
