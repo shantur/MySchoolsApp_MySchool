@@ -252,8 +252,25 @@ jobs:
         with:
           name: build-artifacts
 
-      - name: Install Firebase CLI
-        run: npm install -g firebase-tools@13.20.2
+      - name: Reinstall Cloud Functions dependencies
+        run: |
+          echo "Reinstalling Cloud Functions dependencies to ensure proper SDK discovery..."
+          cd functions
+          npm ci --production
+          
+          # Verify firebase-functions is installed and discoverable
+          if [ ! -d "node_modules/firebase-functions" ]; then
+            echo "❌ ERROR: firebase-functions not found after reinstall"
+            exit 1
+          fi
+          
+          echo "✅ firebase-functions SDK location:"
+          ls -la node_modules/firebase-functions/package.json
+          
+          # Show version for verification
+          npm list firebase-functions
+          
+          cd ..
 
       - name: Determine Firebase project
         run: |
@@ -309,21 +326,20 @@ jobs:
           FIREBASE_SERVICE_ACCOUNT_PROD: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_PROD }}
 
       - name: Deploy to Firebase Hosting and Functions
-        run: |
-          export GOOGLE_APPLICATION_CREDENTIALS="$HOME/gcloud-service-account.json"
-          firebase deploy \
-            --project="$FIREBASE_PROJECT" \
-            --only hosting,functions \
-            --non-interactive \
-            --force
+        uses: w9jds/firebase-action@master
+        with:
+          args: deploy --only hosting,functions --non-interactive --force
+        env:
+          GCP_SA_KEY: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_DEV }}
+          PROJECT_ID: ${{ env.FIREBASE_PROJECT }}
 
       - name: Deploy Firestore and Storage rules
-        run: |
-          export GOOGLE_APPLICATION_CREDENTIALS="$HOME/gcloud-service-account.json"
-          firebase deploy \
-            --project="$FIREBASE_PROJECT" \
-            --only firestore:rules,firestore:indexes,storage:rules \
-            --non-interactive
+        uses: w9jds/firebase-action@master
+        with:
+          args: deploy --only firestore:rules,firestore:indexes,storage:rules --non-interactive
+        env:
+          GCP_SA_KEY: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_DEV }}
+          PROJECT_ID: ${{ env.FIREBASE_PROJECT }}
 
       - name: Cleanup service account file
         if: always()
