@@ -32,6 +32,9 @@ yarn-error.log*
 .env.test.local
 .env.production.local
 
+# Cloud Functions environment files (generated from secrets during deployment)
+functions/.env.yaml
+
 # vercel
 .vercel
 

@@ -6,21 +6,29 @@
  */
 
 console.log('[Admin Lazy] Module loading started');
-import * as admin from 'firebase-admin';
-console.log('[Admin Lazy] Firebase Admin SDK imported');
 import { readFileSync } from 'fs';
 console.log('[Admin Lazy] Module loading complete');
 
 // Lazy-loaded admin app instance
-let _adminApp: admin.app.App | null = null;
-let _adminDb: admin.firestore.Firestore | null = null;
-let _adminAuth: admin.auth.Auth | null = null;
-let _adminStorage: admin.storage.Storage | null = null;
+let _adminApp: any | null = null;
+let _adminDb: any | null = null;
+let _adminAuth: any | null = null;
+let _adminStorage: any | null = null;
+
+// Get firebase-admin using require (not import) to avoid webpack bundling issues
+function getFirebaseAdmin() {
+  console.log('[Admin Lazy] Loading firebase-admin via require...');
+  // Use require instead of import to ensure it's truly lazy and not bundled by webpack
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const admin = require('firebase-admin');
+  console.log('[Admin Lazy] firebase-admin loaded');
+  return admin;
+}
 
 /**
  * Get the service account credentials from environment variables
  */
-function getServiceAccount(): admin.ServiceAccount | null {
+function getServiceAccount(): any | null {
   // Skip during build time - check for Next.js build indicator
   if (process.env.NEXT_PHASE === 'phase-production-build' ||
       process.env.NODE_ENV === 'production' && !process.env.FIREBASE_ADMIN_KEY_PATH && !process.env.FIREBASE_ADMIN_KEY_BASE64 ||
@@ -34,7 +42,7 @@ function getServiceAccount(): admin.ServiceAccount | null {
     try {
       const serviceAccountPath = process.env.FIREBASE_ADMIN_KEY_PATH;
       const serviceAccountJson = readFileSync(serviceAccountPath, 'utf8');
-      return JSON.parse(serviceAccountJson) as admin.ServiceAccount;
+      return JSON.parse(serviceAccountJson);
     } catch (error) {
       console.warn('Failed to load service account from file:', error);
       return null;
@@ -48,7 +56,7 @@ function getServiceAccount(): admin.ServiceAccount | null {
         process.env.FIREBASE_ADMIN_KEY_BASE64,
         'base64'
       ).toString('utf8');
-      return JSON.parse(serviceAccountJson) as admin.ServiceAccount;
+      return JSON.parse(serviceAccountJson);
     } catch (error) {
       console.warn('Failed to load service account from base64:', error);
       return null;
@@ -61,8 +69,11 @@ function getServiceAccount(): admin.ServiceAccount | null {
 /**
  * Initialize Firebase Admin SDK lazily (only when first accessed)
  */
-function getAdminApp(): admin.app.App | null {
+function getAdminApp(): any | null {
   console.log('[Admin Lazy] getAdminApp() called');
+  
+  // Get firebase-admin (lazy loaded via require)
+  const admin = getFirebaseAdmin();
   
   // Return existing instance if available
   if (_adminApp) {
@@ -79,13 +90,6 @@ function getAdminApp(): admin.app.App | null {
   }
   
   console.log('[Admin Lazy] No existing app found, will initialize new one');
-
-  // Check if already initialized by another module (e.g., Cloud Functions wrapper)
-  if (admin.apps.length > 0) {
-    _adminApp = admin.app();
-    console.log('[Firebase Admin Lazy] Using existing Firebase Admin SDK instance');
-    return _adminApp;
-  }
 
   // Skip during build time
   if (process.env.NEXT_PHASE === 'phase-production-build') {
@@ -129,8 +133,8 @@ function getAdminApp(): admin.app.App | null {
   } else if (serviceAccount) {
     // Initialize with service account credentials
     _adminApp = admin.initializeApp({
-      credential: admin.credential.cert(serviceAccount),
-      storageBucket: `${(serviceAccount as { project_id: string }).project_id}.appspot.com`,
+      credential: admin.credential.cert(serviceAccount as any),
+      storageBucket: `${(serviceAccount as any).project_id}.appspot.com`,
     });
     console.log('Firebase Admin SDK initialized with service account (lazy)');
   } else {
@@ -141,21 +145,20 @@ function getAdminApp(): admin.app.App | null {
 
   // Initialize services
   if (_adminApp) {
-    _adminDb = admin.firestore();
-    _adminAuth = admin.auth();
-    _adminStorage = admin.storage();
+    _adminDb = _adminApp.firestore();
+    _adminAuth = _adminApp.auth();
+    _adminStorage = _adminApp.storage();
     
     // Connect to emulators in development
     if (useEmulators) {
       try {
-        admin.firestore().settings({
+        _adminDb.settings({
           host: '127.0.0.1:8080',
           ssl: false
         });
         // Check if useEmulator method exists before calling it
-        const auth = admin.auth();
-        const authWithEmulator = auth as { useEmulator?: (url: string) => void };
-        if ('useEmulator' in auth && typeof authWithEmulator.useEmulator === 'function') {
+        const authWithEmulator = _adminAuth as any;
+        if (authWithEmulator && 'useEmulator' in authWithEmulator && typeof authWithEmulator.useEmulator === 'function') {
           authWithEmulator.useEmulator('http://127.0.0.1:9099');
         }
         console.log('Connected to Firebase emulators (lazy)');
@@ -171,11 +174,11 @@ function getAdminApp(): admin.app.App | null {
 /**
  * Get Firestore instance (lazy initialized)
  */
-export function getAdminDb(): admin.firestore.Firestore | null {
+export function getAdminDb(): any | null {
   if (_adminDb === null) {
     const app = getAdminApp();
     if (app) {
-      _adminDb = admin.firestore();
+      _adminDb = app.firestore();
     }
   }
   return _adminDb;
@@ -184,11 +187,11 @@ export function getAdminDb(): admin.firestore.Firestore | null {
 /**
  * Get Auth instance (lazy initialized)
  */
-export function getAdminAuth(): admin.auth.Auth | null {
+export function getAdminAuth(): any | null {
   if (_adminAuth === null) {
     const app = getAdminApp();
     if (app) {
-      _adminAuth = admin.auth();
+      _adminAuth = app.auth();
     }
   }
   return _adminAuth;
@@ -197,11 +200,11 @@ export function getAdminAuth(): admin.auth.Auth | null {
 /**
  * Get Storage instance (lazy initialized)
  */
-export function getAdminStorage(): admin.storage.Storage | null {
+export function getAdminStorage(): any | null {
   if (_adminStorage === null) {
     const app = getAdminApp();
     if (app) {
-      _adminStorage = admin.storage();
+      _adminStorage = app.storage();
     }
   }
   return _adminStorage;

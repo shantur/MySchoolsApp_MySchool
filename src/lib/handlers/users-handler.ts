@@ -27,7 +27,7 @@ export async function getAllUsers(): Promise<User[]> {
     const usersSnapshot = await db.collection('users').get();
 
     const users: User[] = [];
-    usersSnapshot.forEach((doc) => {
+    usersSnapshot.forEach((doc: any) => {
       const data = doc.data();
       users.push({
         uid: doc.id,
