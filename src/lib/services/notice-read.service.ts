@@ -92,7 +92,7 @@ export async function getUserReadNotices(
 
   const snapshot = await query.get();
   
-  return snapshot.docs.map(doc => doc.data().noticeId);
+  return snapshot.docs.map((doc: any) => doc.data().noticeId);
 }
 
 /**
@@ -170,7 +170,7 @@ export async function deleteNoticeReads(noticeId: string): Promise<number> {
 
   // Delete in batches
   const batch = db.batch();
-  snapshot.docs.forEach(doc => {
+  snapshot.docs.forEach((doc: any) => {
     batch.delete(doc.ref);
   });
 

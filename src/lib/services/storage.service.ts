@@ -183,7 +183,7 @@ export async function deleteNoticeFiles(
     const [files] = await bucket.getFiles({ prefix });
     
     // Delete all files
-    await Promise.all(files.map(file => file.delete()));
+    await Promise.all(files.map((file: any) => file.delete()));
     
     return files.length;
   } catch (error) {
