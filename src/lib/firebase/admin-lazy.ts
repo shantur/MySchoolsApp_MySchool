@@ -5,8 +5,11 @@
  * to prevent build-time initialization issues.
  */
 
+console.log('[Admin Lazy] Module loading started');
 import * as admin from 'firebase-admin';
+console.log('[Admin Lazy] Firebase Admin SDK imported');
 import { readFileSync } from 'fs';
+console.log('[Admin Lazy] Module loading complete');
 
 // Lazy-loaded admin app instance
 let _adminApp: admin.app.App | null = null;
@@ -59,9 +62,23 @@ function getServiceAccount(): admin.ServiceAccount | null {
  * Initialize Firebase Admin SDK lazily (only when first accessed)
  */
 function getAdminApp(): admin.app.App | null {
-  if (_adminApp !== null) {
+  console.log('[Admin Lazy] getAdminApp() called');
+  
+  // Return existing instance if available
+  if (_adminApp) {
+    console.log('[Admin Lazy] Returning cached app instance');
     return _adminApp;
   }
+
+  // Check if already initialized by another module (e.g., Cloud Functions wrapper)
+  if (admin.apps.length > 0) {
+    console.log('[Admin Lazy] Found existing Firebase Admin SDK instance');
+    _adminApp = admin.app();
+    console.log('[Firebase Admin Lazy] Using existing Firebase Admin SDK instance');
+    return _adminApp;
+  }
+  
+  console.log('[Admin Lazy] No existing app found, will initialize new one');
 
   // Check if already initialized by another module (e.g., Cloud Functions wrapper)
   if (admin.apps.length > 0) {

@@ -5,9 +5,14 @@
  * POST /api/auth/login
  */
 
+console.log('[Login Route] Starting module load');
 import { NextRequest, NextResponse } from 'next/server';
+console.log('[Login Route] Next.js imports loaded');
 import { handleLogin } from '@/lib/auth/login-handler';
+console.log('[Login Route] handleLogin imported');
 import { SESSION_CONFIG } from '@/lib/auth/session';
+console.log('[Login Route] SESSION_CONFIG imported');
+console.log('[Login Route] All imports complete');
 
 /**
  * POST /api/auth/login
@@ -18,12 +23,17 @@ import { SESSION_CONFIG } from '@/lib/auth/session';
  * @return {Promise<NextResponse>} JSON response with user data or error
  */
 export async function POST(request: NextRequest): Promise<NextResponse> {
+  console.log('[Login Route] POST function called');
+  
   // Parse request body
   const body = await request.json();
+  console.log('[Login Route] Request body parsed');
   const { email, password } = body;
+  console.log('[Login Route] Credentials extracted, calling handleLogin');
 
   // Handle login
   const result = await handleLogin(email, password);
+  console.log('[Login Route] handleLogin returned:', result.success);
 
   if (!result.success) {
     const statusCode = result.error?.code === 'missing_credentials' ? 400 : 
