@@ -244,23 +244,40 @@ jobs:
       - name: Authenticate with Firebase using service account
         run: |
           # Decode and save service account for authentication
+          echo "Setting up service account for environment: ${{ matrix.environment }}"
+          
           if [ "${{ matrix.environment }}" == "production" ]; then
+            if [ -z "$FIREBASE_SERVICE_ACCOUNT_PROD" ]; then
+              echo "❌ ERROR: FIREBASE_SERVICE_ACCOUNT_PROD is not set"
+              exit 1
+            fi
             echo "$FIREBASE_SERVICE_ACCOUNT_PROD" | base64 -d > $HOME/gcloud-service-account.json
           elif [ "${{ matrix.environment }}" == "staging" ]; then
+            if [ -z "$FIREBASE_SERVICE_ACCOUNT_STAGING" ]; then
+              echo "❌ ERROR: FIREBASE_SERVICE_ACCOUNT_STAGING is not set"
+              exit 1
+            fi
             echo "$FIREBASE_SERVICE_ACCOUNT_STAGING" | base64 -d > $HOME/gcloud-service-account.json
           else
+            if [ -z "$FIREBASE_SERVICE_ACCOUNT_DEV" ]; then
+              echo "❌ ERROR: FIREBASE_SERVICE_ACCOUNT_DEV is not set"
+              exit 1
+            fi
             echo "$FIREBASE_SERVICE_ACCOUNT_DEV" | base64 -d > $HOME/gcloud-service-account.json
           fi
           
-          # Set GOOGLE_APPLICATION_CREDENTIALS for Firebase CLI authentication
+          # Verify service account file was created
+          if [ ! -f "$HOME/gcloud-service-account.json" ]; then
+            echo "❌ ERROR: Service account file was not created"
+            exit 1
+          fi
+          
+          echo "✅ Service account file created at $HOME/gcloud-service-account.json"
+          
+          # Set GOOGLE_APPLICATION_CREDENTIALS for reference (will export in deploy steps)
           echo "GOOGLE_APPLICATION_CREDENTIALS=$HOME/gcloud-service-account.json" >> $GITHUB_ENV
           
-          # NOTE: Firebase Functions config (session.secret, app.use_emulators, app.environment)
-          # should be set manually via Firebase Console or locally via:
-          # firebase functions:config:set session.secret="..." app.use_emulators="false" app.environment="production"
-          # This is a one-time setup and does NOT need to be set on every deployment
-          
-          echo "✅ Service account authenticated successfully"
+          echo "✅ Service account configured successfully"
         env:
           FIREBASE_SERVICE_ACCOUNT_DEV: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_DEV }}
           FIREBASE_SERVICE_ACCOUNT_STAGING: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_STAGING }}
@@ -268,19 +285,19 @@ jobs:
 
       - name: Deploy to Firebase Hosting and Functions
         run: |
+          export GOOGLE_APPLICATION_CREDENTIALS="$HOME/gcloud-service-account.json"
           firebase deploy \
             --project="$FIREBASE_PROJECT" \
-            --only hosting,functions
-        env:
-          GOOGLE_APPLICATION_CREDENTIALS: ${{ env.GOOGLE_APPLICATION_CREDENTIALS }}
+            --only hosting,functions \
+            --non-interactive
 
       - name: Deploy Firestore and Storage rules
         run: |
+          export GOOGLE_APPLICATION_CREDENTIALS="$HOME/gcloud-service-account.json"
           firebase deploy \
             --project="$FIREBASE_PROJECT" \
-            --only firestore:rules,firestore:indexes,storage:rules
-        env:
-          GOOGLE_APPLICATION_CREDENTIALS: ${{ env.GOOGLE_APPLICATION_CREDENTIALS }}
+            --only firestore:rules,firestore:indexes,storage:rules \
+            --non-interactive
 
       - name: Cleanup service account file
         if: always()
