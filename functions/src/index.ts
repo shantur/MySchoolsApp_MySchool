@@ -1,6 +1,5 @@
 import {onRequest, HttpsOptions} from 'firebase-functions/v2/https';
 import * as logger from 'firebase-functions/logger';
-import * as admin from 'firebase-admin';
 import next from 'next';
 import type {Request, Response} from 'express';
 
@@ -13,10 +12,8 @@ const FUNCTION_OPTIONS: HttpsOptions = {
   minInstances: 0,
 };
 
-// Initialize Firebase Admin SDK (once at module load)
-if (!admin.apps.length) {
-  admin.initializeApp();
-}
+// Note: Firebase Admin SDK initialization is handled by src/lib/firebase/admin-lazy.ts
+// This allows for proper lazy initialization and environment detection
 
 // Initialize Next.js app lazily (on first request, NOT at module load)
 // This prevents Firebase CLI from trying to load .next during deployment analysis

@@ -4,7 +4,7 @@
   "description": "Cloud Functions for MySchoolWeb Next.js SSR",
   "main": "lib/index.js",
   "engines": {
-    "node": "18"
+    "node": "20"
   },
   "scripts": {
     "build": "tsc",

@@ -63,9 +63,10 @@ function getAdminApp(): admin.app.App | null {
     return _adminApp;
   }
 
-  // Check if already initialized by another module
+  // Check if already initialized by another module (e.g., Cloud Functions wrapper)
   if (admin.apps.length > 0) {
     _adminApp = admin.app();
+    console.log('[Firebase Admin Lazy] Using existing Firebase Admin SDK instance');
     return _adminApp;
   }
 
@@ -75,12 +76,18 @@ function getAdminApp(): admin.app.App | null {
     return null;
   }
 
+  // Detect if running in Cloud Functions environment
+  const isCloudFunctions = process.env.FUNCTION_TARGET !== undefined || 
+                          process.env.FUNCTION_NAME !== undefined ||
+                          process.env.K_SERVICE !== undefined;
+
   // Check if we should use emulators (development or test without service account)
   const useEmulators = (process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test') && 
                        process.env.USE_FIREBASE_EMULATORS === 'true';
 
   console.log(`[Firebase Admin Lazy] NODE_ENV: ${process.env.NODE_ENV}`);
   console.log(`[Firebase Admin Lazy] USE_FIREBASE_EMULATORS: ${process.env.USE_FIREBASE_EMULATORS}`);
+  console.log(`[Firebase Admin Lazy] isCloudFunctions: ${isCloudFunctions}`);
   console.log(`[Firebase Admin Lazy] useEmulators: ${useEmulators}`);
 
   // Get service account credentials if available
@@ -94,6 +101,14 @@ function getAdminApp(): admin.app.App | null {
       storageBucket: 'myschools-app-dev.appspot.com',
     });
     console.log('Firebase Admin SDK initialized for emulators (lazy)');
+  } else if (isCloudFunctions) {
+    // Running in Cloud Functions - use Application Default Credentials (ADC)
+    // ADC automatically uses the Cloud Functions runtime service account
+    _adminApp = admin.initializeApp({
+      // No credential needed - Cloud Functions provides ADC automatically
+      // storageBucket will be auto-detected from the project
+    });
+    console.log('Firebase Admin SDK initialized with Application Default Credentials in Cloud Functions (lazy)');
   } else if (serviceAccount) {
     // Initialize with service account credentials
     _adminApp = admin.initializeApp({
