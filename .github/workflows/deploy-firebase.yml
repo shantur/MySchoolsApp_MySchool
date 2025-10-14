@@ -198,8 +198,9 @@ jobs:
           path: |
             functions/
             .next/
-            out/
+            public/
             package.json
+            firebase.json
           retention-days: 7
 
       - name: Upload coverage reports
