@@ -5,9 +5,26 @@
  * using Firebase Admin SDK.
  */
 
-import { getAdminAuth, getAdminDb } from '@/lib/firebase/admin-lazy';
+console.log('[Auth Service] Module loading started');
 import { UserSession, User } from '@/lib/types';
-import { Timestamp } from 'firebase-admin/firestore';
+console.log('[Auth Service] Types imported');
+// Defer Firebase Admin imports to runtime to avoid module-load hangs
+let getAdminAuth: any;
+let getAdminDb: any;
+let Timestamp: any;
+
+async function ensureFirebaseImports() {
+  if (!getAdminAuth) {
+    console.log('[Auth Service] Lazy loading Firebase Admin SDK...');
+    const adminLazy = await import('@/lib/firebase/admin-lazy');
+    getAdminAuth = adminLazy.getAdminAuth;
+    getAdminDb = adminLazy.getAdminDb;
+    const firestore = await import('firebase-admin/firestore');
+    Timestamp = firestore.Timestamp;
+    console.log('[Auth Service] Firebase Admin SDK loaded');
+  }
+}
+console.log('[Auth Service] Module loading complete');
 
 /**
  * Parameters for creating a new user account
@@ -36,7 +53,13 @@ export async function authenticateUser(
   email: string,
   password: string
 ): Promise<UserSession | null> {
+  console.log('[Auth Service] authenticateUser called');
+  
   try {
+    // Ensure Firebase imports are loaded
+    await ensureFirebaseImports();
+    console.log('[Auth Service] Firebase imports ready');
+    
     // Determine Firebase Auth endpoint based on environment
     const useEmulator = process.env.USE_FIREBASE_EMULATORS === 'true';
     const apiKey = process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
@@ -131,6 +154,11 @@ export async function authenticateUser(
 export async function createUserAccount(
   params: CreateUserParams
 ): Promise<User> {
+  console.log('[Auth Service] createUserAccount called');
+  
+  // Ensure Firebase imports are loaded
+  await ensureFirebaseImports();
+  
   const { email, password, schoolId, role, displayName, groupIds } = params;
   
   const adminAuth = getAdminAuth();
@@ -183,6 +211,11 @@ export async function setUserRole(
   uid: string,
   role: 'user' | 'admin'
 ): Promise<void> {
+  console.log('[Auth Service] setUserRole called');
+  
+  // Ensure Firebase imports are loaded
+  await ensureFirebaseImports();
+  
   const adminAuth = getAdminAuth();
   if (!adminAuth) {
     throw new Error('Firebase Admin SDK not initialized');
