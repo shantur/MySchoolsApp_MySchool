@@ -5,9 +5,9 @@
  * HTML structure designed for parsing by Flutter adapter.
  */
 
-import { getUserSession } from '@/lib/auth/session';
-import { getNoticesBySchool } from '@/lib/handlers/notices-handler';
-import { getBulkReadStatus } from '@/lib/services/notice-read.service';
+import { getUserSession } from '@/lib/auth/session.supabase';
+import { getNoticesBySchool } from '@/lib/handlers/notices-handler.supabase';
+import { getBulkReadStatus } from '@/lib/services/notice-read.service.supabase';
 import Link from 'next/link';
 import NoticeListItem from './NoticeListItem';
 
@@ -53,7 +53,7 @@ export default async function NoticesListPage({
   // Calculate unread count
   const unreadCount = Object.values(readStatus).filter(isRead => !isRead).length;
   
-  // Serialize notices for client component (convert Timestamps to strings)
+  // Serialize notices for client component (Supabase returns Date objects)
   const serializedNotices = notices.map(notice => ({
     noticeId: notice.noticeId,
     schoolId: notice.schoolId,
@@ -61,8 +61,8 @@ export default async function NoticesListPage({
     title: notice.title,
     body: notice.body,
     status: notice.status,
-    publicationDate: notice.publicationDate.toDate().toISOString(),
-    createdAt: notice.createdAt?.toDate().toISOString(),
+    publicationDate: (notice.publicationDate as unknown as Date).toISOString(),
+    createdAt: (notice.createdAt as unknown as Date)?.toISOString(),
     senderName: notice.senderName,
     attachments: notice.attachments,
   }));
