@@ -1,0 +1,189 @@
+# =============================================================================
+# Cloudflare Workers Configuration for MySchoolWeb
+# =============================================================================
+# This file configures Cloudflare Workers deployment using OpenNext.js
+# 
+# Setup Instructions:
+# 1. Replace YOUR_CLOUDFLARE_ACCOUNT_ID with your actual Cloudflare Account ID
+# 2. Authenticate: wrangler login
+# 3. Configure secrets: wrangler secret put SUPABASE_SERVICE_ROLE_KEY
+# 4. Deploy: npm run deploy:staging (or npm run deploy:production)
+#
+# Documentation:
+# - Cloudflare Workers: https://developers.cloudflare.com/workers/
+# - Wrangler: https://developers.cloudflare.com/workers/wrangler/
+# - OpenNext.js: https://opennext.js.org/cloudflare
+# =============================================================================
+
+# Project Name
+name = "myschoolweb-dev"
+
+# Main entry point (OpenNext.js will generate this)
+main = ".open-next/worker.js"
+
+# Compatibility date (determines which Workers runtime features are available)
+# Update this periodically to get new features and fixes
+compatibility_date = "2024-10-15"
+
+# Account ID (REQUIRED: Replace with your Cloudflare Account ID)
+# Get this from: https://dash.cloudflare.com -> Select your account -> Copy Account ID
+account_id = "YOUR_CLOUDFLARE_ACCOUNT_ID"
+
+# Workers Paid plan required for larger bundles and longer execution times
+# Free tier: 1MB bundle, 10ms CPU time
+# Paid tier: 5MB bundle, 50ms CPU time
+# Uncomment below if using paid plan:
+# workers_dev = false
+
+# Route Configuration
+# For production, uncomment and configure custom domain routing
+# routes = [
+#   { pattern = "myschoolweb.example.com/*", zone_name = "example.com" }
+# ]
+
+# =============================================================================
+# Environment Variables (Public - exposed to browser)
+# =============================================================================
+# These are compiled into the Worker bundle and visible in browser
+# DO NOT put sensitive keys here
+[vars]
+NEXT_PUBLIC_SUPABASE_URL = "https://your-project.supabase.co"
+NEXT_PUBLIC_SUPABASE_ANON_KEY = "your-anon-key-here"
+NODE_ENV = "production"
+
+# =============================================================================
+# Secrets (Private - server-side only)
+# =============================================================================
+# Set these using: wrangler secret put SECRET_NAME
+# These are encrypted and only accessible in Worker code
+#
+# Required secrets to configure:
+# - SUPABASE_SERVICE_ROLE_KEY: Service role key for Supabase Admin operations
+# - SESSION_SECRET: JWT signing secret (64+ characters)
+#
+# Example commands:
+#   wrangler secret put SUPABASE_SERVICE_ROLE_KEY
+#   wrangler secret put SESSION_SECRET
+#
+# To list configured secrets:
+#   wrangler secret list
+
+# =============================================================================
+# Build Configuration
+# =============================================================================
+[build]
+command = "npm run build:opennext"
+
+# Upload configuration
+[build.upload]
+format = "service-worker"
+
+# =============================================================================
+# Observability & Logging
+# =============================================================================
+# Workers logs are available via:
+# - wrangler tail (live logs)
+# - Cloudflare Dashboard > Workers > Logs
+# - Logpush (for production monitoring)
+
+# Enable tail consumers for log streaming
+# [tail_consumers]
+# [[tail_consumers.bindings]]
+# service = "my-log-consumer"
+
+# =============================================================================
+# Staging Environment
+# =============================================================================
+[env.staging]
+name = "myschoolweb-staging"
+vars = { NEXT_PUBLIC_SUPABASE_URL = "https://your-staging-project.supabase.co", NODE_ENV = "staging" }
+
+# Configure staging-specific routes if needed
+# routes = [
+#   { pattern = "staging.myschoolweb.example.com/*", zone_name = "example.com" }
+# ]
+
+# =============================================================================
+# Production Environment
+# =============================================================================
+[env.production]
+name = "myschoolweb-prod"
+vars = { NEXT_PUBLIC_SUPABASE_URL = "https://your-production-project.supabase.co", NODE_ENV = "production" }
+
+# Configure production routes (custom domain)
+# routes = [
+#   { pattern = "myschoolweb.example.com/*", zone_name = "example.com" }
+# ]
+
+# =============================================================================
+# Performance & Resource Limits
+# =============================================================================
+# Cloudflare Workers limits (as of 2024):
+# - Free tier: 100,000 requests/day, 10ms CPU time, 1MB bundle
+# - Paid tier: Unlimited requests ($5/month), 50ms CPU time, 5MB bundle
+#
+# Next.js SSR typically requires:
+# - 2-5 MB bundle size (requires paid plan)
+# - 10-30ms CPU time per request (paid plan recommended)
+#
+# Monitoring:
+# - Check bundle size: wrangler deploy --dry-run
+# - Monitor CPU time: Cloudflare Dashboard > Analytics
+# - Set up alerts: Dashboard > Notifications
+
+# =============================================================================
+# Workers KV (Optional - Not used for MySchoolWeb)
+# =============================================================================
+# Session storage uses Supabase Auth instead of Workers KV
+# Uncomment below only if you need KV for caching or other purposes
+#
+# [[kv_namespaces]]
+# binding = "MY_KV"
+# id = "your-kv-namespace-id"
+# preview_id = "your-preview-kv-namespace-id"
+
+# =============================================================================
+# Compatibility Flags
+# =============================================================================
+# Enable Node.js compatibility for better Next.js support
+compatibility_flags = ["nodejs_compat", "global_fetch_strictly_public"]
+
+# =============================================================================
+# Asset Handling (Static Files)
+# =============================================================================
+# OpenNext.js handles static asset uploads to Cloudflare Pages or R2
+# No additional configuration needed here
+#
+# Static assets will be served from:
+# - Cloudflare Pages (recommended for Next.js static files)
+# - Or Cloudflare R2 (S3-compatible storage)
+#
+# Asset URLs will be automatically rewritten by OpenNext.js
+
+# =============================================================================
+# Troubleshooting & Common Issues
+# =============================================================================
+# 
+# 1. "Worker exceeded CPU time limit"
+#    - Optimize database queries
+#    - Use edge caching
+#    - Consider upgrading to paid plan
+#
+# 2. "Worker script too large"
+#    - Analyze bundle: wrangler deploy --dry-run
+#    - Remove unused dependencies
+#    - Use dynamic imports for large libraries
+#    - Upgrade to paid plan (5MB limit)
+#
+# 3. "Cannot find module 'node:*'"
+#    - Add nodejs_compat to compatibility_flags (already enabled above)
+#
+# 4. "Environment variables not working"
+#    - Public vars: Use NEXT_PUBLIC_ prefix and add to [vars]
+#    - Private vars: Use wrangler secret put
+#
+# 5. "Deployment fails with auth error"
+#    - Run: wrangler login
+#    - Verify account_id is correct
+#
+# For more help: https://developers.cloudflare.com/workers/troubleshooting/

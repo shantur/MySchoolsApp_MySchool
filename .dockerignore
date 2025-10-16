@@ -1,0 +1,53 @@
+# Dependencies
+node_modules
+npm-debug.log
+
+# Next.js build output
+.next
+out
+
+# Testing
+coverage
+.nyc_output
+test-results
+playwright-report
+*.test.ts
+*.test.js
+__tests__
+
+# Environment files
+.env*.local
+.env.development
+.env.test
+
+# Git
+.git
+.gitignore
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# Firebase
+.firebase
+firebase-debug.log
+firebase-debug.*.log
+emulator-data
+firestore-debug.log
+ui-debug.log
+
+# Functions (Cloud Functions specific, not needed for Cloud Run)
+functions
+
+# Documentation
+*.md
+!README.md
+
+# Scripts
+scripts
+
+# Misc
+.DS_Store
+*.pem
