@@ -13,13 +13,14 @@ export const metadata = {
 };
 
 interface LoginPageProps {
-  searchParams: {
+  searchParams: Promise<{
     redirect?: string;
-  };
+  }>;
 }
 
-export default function LoginPage({ searchParams }: LoginPageProps) {
-  const redirectUrl = searchParams.redirect;
+export default async function LoginPage({ searchParams }: LoginPageProps) {
+  const params = await searchParams;
+  const redirectUrl = params.redirect;
 
   return (
     <>

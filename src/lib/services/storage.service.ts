@@ -1,16 +1,17 @@
 /**
- * Firebase Storage Service
+ * Supabase Storage Service
  * 
- * Handles file upload, download, and deletion operations in Firebase Storage.
+ * Handles file upload, download, and deletion operations in Supabase Storage.
  * Provides methods for managing notice attachments with proper authentication.
+ * Migrated from Firebase Storage to Supabase for Phase 4.
  */
 
 import { randomUUID } from 'crypto';
-import { getAdminStorage } from '../firebase/admin-lazy';
+import { createServerClient } from '../supabase/server';
 import type { Attachment } from '../types';
 
 /**
- * Upload a file to Firebase Storage
+ * Upload a file to Supabase Storage
  * 
  * @param file - Base64-encoded file data
  * @param fileName - Original file name
@@ -26,81 +27,44 @@ export async function uploadFile(
   schoolId: string,
   noticeId: string
 ): Promise<string> {
-  const storage = getAdminStorage();
-  
-  if (!storage) {
-    throw new Error('Firebase Storage not initialized');
-  }
+  const supabase = createServerClient();
 
-  // Get the bucket explicitly with name
-  // For emulator, we need to specify the bucket name
-  const bucketName = process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || 'myschools-app-dev.appspot.com';
-  const bucket = storage.bucket(bucketName);
-  
-  // Create a safe file path: attachments/{schoolId}/{noticeId}/{timestamp}_{fileName}
+  // Create a safe file path: {schoolId}/{noticeId}/{timestamp}_{fileName}
+  // Note: Do not include 'attachments/' prefix since that's the bucket name
   const timestamp = Date.now();
   const safeFileName = fileName.replace(/[^a-zA-Z0-9.-]/g, '_');
-  const filePath = `attachments/${schoolId}/${noticeId}/${timestamp}_${safeFileName}`;
-  
+  const filePath = `${schoolId}/${noticeId}/${timestamp}_${safeFileName}`;
+
   // Convert base64 to buffer
   const fileBuffer = Buffer.from(file, 'base64');
-  
-  // Create file reference
-  const fileRef = bucket.file(filePath);
-  
-  // Generate download token for emulator (Firebase Storage Emulator doesn't auto-generate tokens)
-  const downloadToken = randomUUID();
-  
-  // Upload file with metadata
-  await fileRef.save(fileBuffer, {
-    metadata: {
+
+  // Upload to Supabase Storage (attachments bucket)
+  const { data, error } = await supabase.storage
+    .from('attachments')
+    .upload(filePath, fileBuffer, {
       contentType: fileType,
-      metadata: {
-        firebaseStorageDownloadTokens: downloadToken, // Required for emulator downloads
-        schoolId,
-        noticeId,
-        originalFileName: fileName,
-        uploadedAt: new Date().toISOString(),
-      },
-    },
-  });
-  
-  // For emulator, return local URL with download token
-  // For production, generate signed URL with long expiration
-  const useEmulators = process.env.USE_FIREBASE_EMULATORS === 'true';
-  
-  if (useEmulators) {
-    // Emulator: Get metadata to retrieve download token
-    const [metadata] = await fileRef.getMetadata();
-    const downloadToken = metadata.metadata?.firebaseStorageDownloadTokens;
-    
-    // Return direct download URL with token (bypasses auth requirement)
-    const projectId = 'myschools-app-dev';
-    const encodedPath = encodeURIComponent(filePath);
-    
-    // Use configurable host for emulator URLs
-    // Default to 10.0.2.2 for Android emulators (can override with NEXT_PUBLIC_STORAGE_EMULATOR_HOST)
-    // Note: FIREBASE_STORAGE_EMULATOR_HOST is used by Firebase SDK internally, so we use a different var
-    const emulatorHost = process.env.NEXT_PUBLIC_STORAGE_EMULATOR_HOST || '10.0.2.2:9199';
-    
-    if (downloadToken) {
-      return `http://${emulatorHost}/v0/b/${projectId}.appspot.com/o/${encodedPath}?alt=media&token=${downloadToken}`;
-    } else {
-      // Fallback without token (will require auth)
-      return `http://${emulatorHost}/v0/b/${projectId}.appspot.com/o/${encodedPath}?alt=media`;
-    }
-  } else {
-    // Production: Generate signed URL with 1-year expiration
-    const [signedUrl] = await fileRef.getSignedUrl({
-      action: 'read',
-      expires: Date.now() + 365 * 24 * 60 * 60 * 1000, // 1 year
+      upsert: false,
     });
-    return signedUrl;
+
+  if (error) {
+    throw new Error(`Failed to upload file: ${error.message}`);
   }
+
+  // Create signed URL for private bucket (expires in 1 hour)
+  // This provides authenticated access while maintaining security
+  const { data: signedUrlData, error: signedError } = await supabase.storage
+    .from('attachments')
+    .createSignedUrl(filePath, 3600); // 3600 seconds = 1 hour
+
+  if (signedError || !signedUrlData) {
+    throw new Error(`Failed to create signed URL: ${signedError?.message}`);
+  }
+
+  return signedUrlData.signedUrl;
 }
 
 /**
- * Delete a file from Firebase Storage
+ * Delete a file from Supabase Storage
  * 
  * @param downloadURL - The download URL of the file to delete
  * @returns True if deletion was successful
@@ -110,45 +74,30 @@ export async function deleteFile(downloadURL: string): Promise<boolean> {
     return true; // Nothing to delete
   }
 
-  const storage = getAdminStorage();
-  
-  if (!storage) {
-    console.warn('Firebase Storage not initialized, skipping file deletion');
-    return false;
-  }
+  const supabase = createServerClient();
 
   try {
     // Extract file path from URL
-    // Emulator URL format: http://127.0.0.1:9199/v0/b/{bucket}/o/{encodedPath}?alt=media (web)
-    //                   or: http://10.0.2.2:9199/v0/b/{bucket}/o/{encodedPath}?alt=media (Android emulator)
-    // Production URL format: Various signed URL formats
+    // Supabase URL format: https://{project}.co/storage/v1/object/public/attachments/{path}
+    // We need to extract just the path part after 'attachments/'
+    const match = downloadURL.match(/\/attachments\/(.+?)(?:\?|$)/);
     
-    let filePath: string | null = null;
-    
-    if (downloadURL.includes('127.0.0.1:9199') || downloadURL.includes('10.0.2.2:9199')) {
-      // Emulator URL
-      const match = downloadURL.match(/\/o\/([^?]+)/);
-      if (match) {
-        filePath = decodeURIComponent(match[1]);
-      }
-    } else {
-      // Production signed URL - extract from URL path
-      const match = downloadURL.match(/\/o\/([^?]+)/);
-      if (match) {
-        filePath = decodeURIComponent(match[1]);
-      }
-    }
-    
-    if (!filePath) {
+    if (!match || !match[1]) {
       console.warn('Could not extract file path from URL:', downloadURL);
       return false;
     }
     
-    const bucketName = process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || 'myschools-app-dev.appspot.com';
-    const bucket = storage.bucket(bucketName);
-    const fileRef = bucket.file(filePath);
-    
-    await fileRef.delete();
+    const filePath = match[1]; // Get the captured group (path after 'attachments/')
+
+    const { error } = await supabase.storage
+      .from('attachments')
+      .remove([filePath]);
+
+    if (error) {
+      console.error('Error deleting file:', error);
+      return false;
+    }
+
     return true;
   } catch (error) {
     console.error('Error deleting file:', error);
@@ -167,24 +116,38 @@ export async function deleteNoticeFiles(
   schoolId: string,
   noticeId: string
 ): Promise<number> {
-  const storage = getAdminStorage();
-  
-  if (!storage) {
-    console.warn('Firebase Storage not initialized, skipping file deletion');
-    return 0;
-  }
+  const supabase = createServerClient();
 
   try {
-    const bucketName = process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || 'myschools-app-dev.appspot.com';
-    const bucket = storage.bucket(bucketName);
-    const prefix = `attachments/${schoolId}/${noticeId}/`;
-    
+    const prefix = `${schoolId}/${noticeId}/`;
+
     // List all files with this prefix
-    const [files] = await bucket.getFiles({ prefix });
-    
+    const { data: files, error: listError } = await supabase.storage
+      .from('attachments')
+      .list(`${schoolId}/${noticeId}`, {
+        limit: 1000,
+      });
+
+    if (listError) {
+      console.error('Error listing files:', listError);
+      return 0;
+    }
+
+    if (!files || files.length === 0) {
+      return 0;
+    }
+
     // Delete all files
-    await Promise.all(files.map((file: any) => file.delete()));
-    
+    const filePaths = files.map((file: { name: string }) => `${prefix}${file.name}`);
+    const { error: deleteError } = await supabase.storage
+      .from('attachments')
+      .remove(filePaths);
+
+    if (deleteError) {
+      console.error('Error deleting notice files:', deleteError);
+      return 0;
+    }
+
     return files.length;
   } catch (error) {
     console.error('Error deleting notice files:', error);
@@ -206,7 +169,7 @@ export async function processAttachments(
   noticeId: string
 ): Promise<Attachment[]> {
   const processedAttachments: Attachment[] = [];
-  
+
   for (const attachment of attachments) {
     if (attachment.fileData) {
       // New file - upload it
@@ -217,7 +180,7 @@ export async function processAttachments(
         schoolId,
         noticeId
       );
-      
+
       processedAttachments.push({
         id: attachment.id,
         fileName: attachment.fileName,
@@ -236,6 +199,6 @@ export async function processAttachments(
       });
     }
   }
-  
+
   return processedAttachments;
 }

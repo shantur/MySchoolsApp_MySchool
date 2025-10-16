@@ -21,7 +21,7 @@ import { NoticesService } from '@/lib/services/notices.service';
  */
 export async function POST(
   request: NextRequest,
-  { params }: { params: { noticeId: string } }
+  { params }: { params: Promise<{ noticeId: string }> }
 ): Promise<NextResponse> {
   try {
     // Get user session
@@ -37,7 +37,8 @@ export async function POST(
       );
     }
 
-    const { noticeId } = params;
+    const resolvedParams = await params;
+    const { noticeId } = resolvedParams;
 
     if (!noticeId) {
       return NextResponse.json(
