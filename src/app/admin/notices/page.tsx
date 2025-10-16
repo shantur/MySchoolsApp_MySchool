@@ -7,6 +7,7 @@
 
 import { getUserSession } from '@/lib/auth/session';
 import { getAllNotices } from '@/lib/handlers/notices-handler';
+import { formatDate, formatTime } from '@/lib/utils';
 import Link from 'next/link';
 import NoticeActions from '@/components/admin/NoticeActions';
 
@@ -185,14 +186,10 @@ export default async function AdminNoticesPage() {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                           <div>
-                            {notice.publicationDate.toDate().toLocaleDateString()}
+                            {formatDate(notice.publicationDate)}
                           </div>
                           <div className="text-xs text-gray-500">
-                            {notice.publicationDate.toDate().toLocaleTimeString('en-GB', {
-                              hour: '2-digit',
-                              minute: '2-digit',
-                              hour12: false,
-                            })}
+                            {formatTime(notice.publicationDate)}
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">

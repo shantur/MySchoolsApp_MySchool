@@ -8,8 +8,8 @@
  * Attachments Service (Supabase) Test Suite
  */
 
-import { AttachmentsServiceSupabase } from '../attachments.service.supabase';
-import type { UploadAttachmentInput } from '../attachments.service.supabase';
+import { AttachmentsServiceSupabase } from '../attachments.service';
+import type { UploadAttachmentInput } from '../attachments.service';
 import { createServerClient } from '../../supabase/server';
 
 jest.mock('../../supabase/server', () => ({

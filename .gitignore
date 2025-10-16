@@ -13,6 +13,9 @@
 /.next/
 /out/
 
+# OpenNext.js build output (Phase 6: Cloudflare Workers)
+.open-next/
+
 # production
 /build
 
@@ -34,6 +37,12 @@ yarn-error.log*
 
 # Cloud Functions environment files (generated from secrets during deployment)
 functions/.env.yaml
+
+# Firebase Functions backup (Phase 6 migration)
+functions_backup_*.tar.gz
+
+# Phase 6 verification script (temporary)
+verify-phase6-migration.js
 
 # vercel
 .vercel
@@ -92,3 +101,31 @@ cookies.txt
 
 MySchoolsApp_MySchool
 firebase-export-*/
+.open-next
+
+# Development logs and process files
+dev.log
+dev-server.log
+dev-server.pid
+e2e-test-output.log
+test-e2e-supabase-output.log
+
+# Temporary test reports
+myschool-test-report.md
+myschoolweb_manual_test_report.md
+
+# Temporary scripts and verification files
+add-user-to-group.js
+check-*.js
+verify-*.js
+manual-verify-*.js
+migrate-*.js
+fix_timestamps.sh
+deploy-cloud-run.sh
+
+# Cloudflare Workers local development
+.dev.vars
+wrangler.toml.bak
+
+# Test middleware (debug routes)
+src/app/api/test-middleware/

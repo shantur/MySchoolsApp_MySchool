@@ -4,7 +4,7 @@
  * Tests for Supabase-based JWT session management
  */
 
-import { createSession, validateSession, getUserSession } from '../session.supabase';
+import { createSession, validateSession, getUserSession } from '../session';
 
 describe('Session Management (Supabase)', () => {
   const originalEnv = process.env;
@@ -121,10 +121,10 @@ describe('Session Management (Supabase)', () => {
       };
 
       jest.doMock('next/headers', () => ({
-        cookies: () => mockCookies,
+        cookies: async () => mockCookies,
       }));
 
-      const { getUserSession: getUserSessionMocked } = await import('../session.supabase');
+      const { getUserSession: getUserSessionMocked } = await import('../session');
       const session = await getUserSessionMocked();
 
       expect(session).toEqual(sessionData);
@@ -136,10 +136,10 @@ describe('Session Management (Supabase)', () => {
       };
 
       jest.doMock('next/headers', () => ({
-        cookies: () => mockCookies,
+        cookies: async () => mockCookies,
       }));
 
-      const { getUserSession: getUserSessionMocked } = await import('../session.supabase');
+      const { getUserSession: getUserSessionMocked } = await import('../session');
       const session = await getUserSessionMocked();
 
       expect(session).toBeNull();
@@ -151,10 +151,10 @@ describe('Session Management (Supabase)', () => {
       };
 
       jest.doMock('next/headers', () => ({
-        cookies: () => mockCookies,
+        cookies: async () => mockCookies,
       }));
 
-      const { getUserSession: getUserSessionMocked } = await import('../session.supabase');
+      const { getUserSession: getUserSessionMocked } = await import('../session');
       const session = await getUserSessionMocked();
 
       expect(session).toBeNull();
@@ -163,7 +163,7 @@ describe('Session Management (Supabase)', () => {
 
   describe('SESSION_CONFIG', () => {
     it('should have correct configuration', async () => {
-      const { SESSION_CONFIG } = await import('../session.supabase');
+      const { SESSION_CONFIG } = await import('../session');
 
       expect(SESSION_CONFIG.cookieName).toBe('__session');
       expect(SESSION_CONFIG.maxAge).toBe(24 * 60 * 60 * 1000); // 24 hours
@@ -175,7 +175,7 @@ describe('Session Management (Supabase)', () => {
       process.env.NODE_ENV = 'production';
       jest.resetModules();
 
-      const { SESSION_CONFIG } = await import('../session.supabase');
+      const { SESSION_CONFIG } = await import('../session');
 
       expect(SESSION_CONFIG.secure).toBe(true);
     });
@@ -184,7 +184,7 @@ describe('Session Management (Supabase)', () => {
       process.env.NODE_ENV = 'development';
       jest.resetModules();
 
-      const { SESSION_CONFIG } = await import('../session.supabase');
+      const { SESSION_CONFIG } = await import('../session');
 
       expect(SESSION_CONFIG.secure).toBe(false);
     });

@@ -1,38 +1,4 @@
 {
-  "functions": {
-    "source": "functions",
-    "runtime": "nodejs20",
-    "ignore": [
-      "node_modules",
-      ".git",
-      "firebase-debug.log",
-      "firebase-debug.*.log",
-      ".runtimeconfig.json",
-      "src/__tests__",
-      "**/__tests__/**",
-      "**/*.test.ts",
-      "**/*.test.js",
-      "coverage",
-      "*.tsbuildinfo"
-    ]
-  },
-  "hosting": {
-    "public": "public",
-    "ignore": [
-      "firebase.json",
-      "**/.*",
-      "**/node_modules/**"
-    ],
-    "rewrites": [
-      {
-        "source": "**",
-        "function": {
-          "functionId": "nextjsFunc",
-          "region": "us-central1"
-        }
-      }
-    ]
-  },
   "firestore": {
     "indexes": "firestore.indexes.json",
     "rules": "firestore.rules"
@@ -44,14 +10,8 @@
     "auth": {
       "port": 19099
     },
-    "functions": {
-      "port": 15001
-    },
     "firestore": {
       "port": 18080
-    },
-    "hosting": {
-      "port": 15000
     },
     "storage": {
       "port": 19199

@@ -1,27 +1,18 @@
 /**
- * Schools Service
+ * Schools Service (Supabase)
  * 
- * Provides CRUD operations for managing schools in Firestore.
+ * Provides CRUD operations for managing schools using Supabase PostgreSQL.
  * Implements business logic and data validation for school entities.
+ * Migrated from Firebase Firestore to Supabase for Phase 4.
  */
 
-import { getAdminDb } from '../firebase/admin-lazy';
+import { createServerClient } from '../supabase/server';
 import type { School } from '../types';
-import { Timestamp } from 'firebase-admin/firestore';
 import {
   validateSchoolInput,
   sanitizeSchoolInput,
   ValidationError,
 } from '../validation/school-validation';
-
-// Helper function to get Firestore instance
-const getDb = () => {
-  const db = getAdminDb();
-  if (!db) {
-    throw new Error('Firestore is not available');
-  }
-  return db;
-};
 
 // Export ValidationError for use by consumers
 export { ValidationError };
@@ -48,10 +39,50 @@ export interface UpdateSchoolInput {
 }
 
 /**
- * Schools Service class for managing school entities
+ * Database row type (snake_case from PostgreSQL)
  */
-export class SchoolsService {
-  private readonly collection = 'schools';
+interface SchoolRow {
+  id: string;
+  name: string;
+  address?: string;
+  contact_email?: string;
+  contact_phone?: string;
+  created_at: string | Date;
+  updated_at: string | Date;
+}
+
+/**
+ * Schools Service class for managing school entities with Supabase
+ */
+export class SchoolsServiceSupabase {
+  private readonly table = 'schools';
+
+  /**
+   * Helper to get Supabase client
+   * 
+   * @return {ReturnType<typeof createServerClient>} Supabase client
+   */
+  private getClient() {
+    return createServerClient();
+  }
+
+  /**
+   * Convert database row to School type (snake_case → camelCase)
+   * 
+   * @param {SchoolRow} row - Database row
+   * @return {School} Typed School object
+   */
+  private rowToSchool(row: SchoolRow): School {
+    return {
+      schoolId: row.id,
+      name: row.name,
+      ...(row.address && { address: row.address }),
+      ...(row.contact_email && { contactEmail: row.contact_email }),
+      ...(row.contact_phone && { contactPhone: row.contact_phone }),
+      createdAt: new Date(row.created_at) as any,
+      updatedAt: new Date(row.updated_at) as any,
+    };
+  }
 
   /**
    * Create a new school
@@ -68,13 +99,9 @@ export class SchoolsService {
 
     // Validate custom school ID uniqueness if provided
     if (sanitized.schoolId) {
-      const db = getDb();
-      const existingDoc = await db
-        .collection(this.collection)
-        .doc(sanitized.schoolId)
-        .get();
+      const existing = await this.getSchoolById(sanitized.schoolId);
       
-      if (existingDoc.exists) {
+      if (existing) {
         throw new ValidationError(
           'School ID already exists',
           'DUPLICATE_ID',
@@ -83,39 +110,27 @@ export class SchoolsService {
       }
     }
 
-    const now = Timestamp.now();
-    const schoolData = {
+    // Prepare school data (camelCase → snake_case)
+    const schoolData: Record<string, unknown> = {
       name: sanitized.name,
+      ...(sanitized.schoolId && { id: sanitized.schoolId }),
       ...(sanitized.address && { address: sanitized.address }),
-      ...(sanitized.contactEmail && { 
-        contactEmail: sanitized.contactEmail 
-      }),
-      ...(sanitized.contactPhone && { 
-        contactPhone: sanitized.contactPhone 
-      }),
-      createdAt: now,
-      updatedAt: now,
+      ...(sanitized.contactEmail && { contact_email: sanitized.contactEmail }),
+      ...(sanitized.contactPhone && { contact_phone: sanitized.contactPhone }),
     };
 
-    const db = getDb();
-    
-    // Use custom ID if provided, otherwise auto-generate
-    let docRef;
-    let schoolId: string;
-    
-    if (sanitized.schoolId) {
-      schoolId = sanitized.schoolId;
-      docRef = db.collection(this.collection).doc(schoolId);
-      await docRef.set(schoolData);
-    } else {
-      docRef = await db.collection(this.collection).add(schoolData);
-      schoolId = docRef.id;
+    const supabase = this.getClient();
+    const { data, error } = await supabase
+      .from(this.table)
+      .insert(schoolData)
+      .select()
+      .single();
+
+    if (error) {
+      throw new Error(`Failed to create school: ${error.message}`);
     }
 
-    return {
-      schoolId,
-      ...schoolData,
-    };
+    return this.rowToSchool(data as SchoolRow);
   }
 
   /**
@@ -125,21 +140,23 @@ export class SchoolsService {
    * @return {Promise<School | null>} School if found, null otherwise
    */
   async getSchoolById(schoolId: string): Promise<School | null> {
-    const db = getDb();
-    const doc = await db
-      .collection(this.collection)
-      .doc(schoolId)
-      .get();
+    const supabase = this.getClient();
+    const { data, error } = await supabase
+      .from(this.table)
+      .select('*')
+      .eq('id', schoolId)
+      .single();
 
-    if (!doc.exists) {
+    // PGRST116 is Supabase's "not found" error code
+    if ((error && error.code === 'PGRST116') || !data) {
       return null;
     }
 
-    const data = doc.data();
-    return {
-      schoolId: doc.id,
-      ...data,
-    } as School;
+    if (error) {
+      throw new Error(`Failed to get school: ${error.message}`);
+    }
+
+    return this.rowToSchool(data as SchoolRow);
   }
 
   /**
@@ -179,12 +196,9 @@ export class SchoolsService {
       };
       const sanitized = sanitizeSchoolInput(sanitizedInput);
       
-      // Prepare update data, excluding placeholder name if not in original updates
-      const updateData: Record<string, unknown> = {
-        updatedAt: Timestamp.now(),
-      };
+      // Prepare update data (camelCase → snake_case)
+      const updateData: Record<string, unknown> = {};
 
-      // Add sanitized fields (excluding placeholder name if not in updates)
       if (updates.name !== undefined) {
         updateData.name = sanitized.name;
       }
@@ -193,18 +207,23 @@ export class SchoolsService {
       }
       if (updates.contactEmail !== undefined && 
           sanitized.contactEmail !== undefined) {
-        updateData.contactEmail = sanitized.contactEmail;
+        updateData.contact_email = sanitized.contactEmail;
       }
       if (updates.contactPhone !== undefined && 
           sanitized.contactPhone !== undefined) {
-        updateData.contactPhone = sanitized.contactPhone;
+        updateData.contact_phone = sanitized.contactPhone;
       }
 
-      const db = getDb();
-      await db
-        .collection(this.collection)
-        .doc(schoolId)
-        .set(updateData, { merge: true });
+      // Supabase handles updated_at automatically via trigger
+      const supabase = this.getClient();
+      const { error } = await supabase
+        .from(this.table)
+        .update(updateData)
+        .eq('id', schoolId);
+
+      if (error) {
+        throw new Error(`Failed to update school: ${error.message}`);
+      }
     }
 
     return this.getSchoolById(schoolId) as Promise<School>;
@@ -227,13 +246,19 @@ export class SchoolsService {
       );
     }
 
-    const db = getDb();
-    
     // Check for dependent data before deletion
     await this.checkDependencies(schoolId);
 
     // Delete the school
-    await db.collection(this.collection).doc(schoolId).delete();
+    const supabase = this.getClient();
+    const { error } = await supabase
+      .from(this.table)
+      .delete()
+      .eq('id', schoolId);
+
+    if (error) {
+      throw new Error(`Failed to delete school: ${error.message}`);
+    }
   }
 
   /**
@@ -245,16 +270,20 @@ export class SchoolsService {
    * @throws {ValidationError} If dependencies exist
    */
   private async checkDependencies(schoolId: string): Promise<void> {
-    const db = getDb();
+    const supabase = this.getClient();
 
     // Check for associated users
-    const usersSnapshot = await db
-      .collection('users')
-      .where('schoolId', '==', schoolId)
-      .limit(1)
-      .get();
+    const { data: users, error: usersError } = await supabase
+      .from('users')
+      .select('id')
+      .eq('school_id', schoolId)
+      .limit(1);
 
-    if (!usersSnapshot.empty) {
+    if (usersError) {
+      throw new Error(`Failed to check user dependencies: ${usersError.message}`);
+    }
+
+    if (users && users.length > 0) {
       throw new ValidationError(
         'Cannot delete school with existing users. ' +
         'Please remove or reassign all users first.',
@@ -264,13 +293,17 @@ export class SchoolsService {
     }
 
     // Check for associated groups
-    const groupsSnapshot = await db
-      .collection('groups')
-      .where('schoolId', '==', schoolId)
-      .limit(1)
-      .get();
+    const { data: groups, error: groupsError } = await supabase
+      .from('groups')
+      .select('id')
+      .eq('school_id', schoolId)
+      .limit(1);
 
-    if (!groupsSnapshot.empty) {
+    if (groupsError) {
+      throw new Error(`Failed to check group dependencies: ${groupsError.message}`);
+    }
+
+    if (groups && groups.length > 0) {
       throw new ValidationError(
         'Cannot delete school with existing groups. ' +
         'Please remove all groups first.',
@@ -280,13 +313,17 @@ export class SchoolsService {
     }
 
     // Check for associated notices
-    const noticesSnapshot = await db
-      .collection('notices')
-      .where('schoolId', '==', schoolId)
-      .limit(1)
-      .get();
+    const { data: notices, error: noticesError } = await supabase
+      .from('notices')
+      .select('id')
+      .eq('school_id', schoolId)
+      .limit(1);
 
-    if (!noticesSnapshot.empty) {
+    if (noticesError) {
+      throw new Error(`Failed to check notice dependencies: ${noticesError.message}`);
+    }
+
+    if (notices && notices.length > 0) {
       throw new ValidationError(
         'Cannot delete school with existing notices. ' +
         'Please remove all notices first.',
@@ -302,15 +339,20 @@ export class SchoolsService {
    * @return {Promise<School[]>} Array of all schools
    */
   async listSchools(): Promise<School[]> {
-    const db = getDb();
-    const snapshot = await db
-      .collection(this.collection)
-      .orderBy('name', 'asc')
-      .get();
+    const supabase = this.getClient();
+    const { data, error } = await supabase
+      .from(this.table)
+      .select('*')
+      .order('name', { ascending: true })
+      .limit(1000);
 
-    return snapshot.docs.map((doc: import('firebase-admin/firestore').QueryDocumentSnapshot) => ({
-      schoolId: doc.id,
-      ...doc.data(),
-    })) as School[];
+    if (error) {
+      throw new Error(`Failed to list schools: ${error.message}`);
+    }
+
+    return (data as SchoolRow[]).map(row => this.rowToSchool(row));
   }
 }
+
+// Compatibility export for Firebase-to-Supabase migration
+export const SchoolsService = SchoolsServiceSupabase;

@@ -1,22 +1,14 @@
 /**
- * Attachments Service
+ * Attachments Service (Supabase)
  * 
- * Handles file uploads/downloads with Firebase Storage.
+ * Handles file uploads/downloads with Supabase Storage.
  * Manages attachment metadata for notices.
+ * Migrated from Firebase Storage to Supabase for Phase 4.
  */
 
-import { getAdminStorage } from '../firebase/admin-lazy';
+import { createServerClient } from '../supabase/server';
 import type { Attachment } from '../types';
 import { randomBytes } from 'crypto';
-
-// Helper function to get Storage instance
-const getStorage = () => {
-  const storage = getAdminStorage();
-  if (!storage) {
-    throw new Error('Firebase Storage is not available');
-  }
-  return storage;
-};
 
 /**
  * Input type for uploading an attachment
@@ -42,11 +34,11 @@ const ALLOWED_MIME_TYPES = [
 ];
 
 /**
- * Attachments Service class for file management
+ * Attachments Service class for file management with Supabase
  */
-export class AttachmentsService {
+export class AttachmentsServiceSupabase {
   /**
-   * Upload an attachment to Firebase Storage
+   * Upload an attachment to Supabase Storage
    * 
    * @param {UploadAttachmentInput} input - Upload data
    * @return {Promise<Attachment>} Attachment metadata
@@ -70,18 +62,25 @@ export class AttachmentsService {
     const filePath = 
       `attachments/${input.schoolId}/${input.noticeId}/${attachmentId}`;
 
-    // Upload file to Storage
-    const storage = getStorage();
-    const bucket = storage.bucket();
-    const file = bucket.file(filePath);
-
-    await file.save(input.buffer, {
-      metadata: {
+    // Upload file to Supabase Storage
+    const supabase = createServerClient();
+    const { error } = await supabase.storage
+      .from('attachments')
+      .upload(filePath, input.buffer, {
         contentType: input.mimeType,
-      },
-    });
+        upsert: false,
+      });
 
-    // Create download URL (internal API endpoint)
+    if (error) {
+      throw new Error(`Failed to upload attachment: ${error.message}`);
+    }
+
+    // Get public URL
+    const { data: publicUrlData } = supabase.storage
+      .from('attachments')
+      .getPublicUrl(filePath);
+
+    // Create download URL (internal API endpoint for compatibility)
     const downloadURL = 
       `/api/attachments/download/${attachmentId}?` +
       `noticeId=${input.noticeId}&schoolId=${input.schoolId}`;
@@ -90,18 +89,18 @@ export class AttachmentsService {
       id: attachmentId,
       fileName: input.fileName,
       fileType: input.mimeType,
-      downloadURL,
+      downloadURL: publicUrlData.publicUrl, // Use Supabase public URL
       size: input.buffer.length,
     };
   }
 
   /**
-   * Get a signed download URL for an attachment
+   * Get a download URL for an attachment
    * 
    * @param {string} attachmentId - The attachment ID
    * @param {string} schoolId - The school ID
    * @param {string} noticeId - The notice ID
-   * @return {Promise<string>} Signed download URL
+   * @return {Promise<string>} Download URL
    */
   async getAttachmentDownloadUrl(
     attachmentId: string,
@@ -111,17 +110,15 @@ export class AttachmentsService {
     const filePath = 
       `attachments/${schoolId}/${noticeId}/${attachmentId}`;
 
-    const storage = getStorage();
-    const bucket = storage.bucket();
-    const file = bucket.file(filePath);
+    const supabase = createServerClient();
 
-    // Generate signed URL valid for 1 hour
-    const [url] = await file.getSignedUrl({
-      action: 'read',
-      expires: Date.now() + 60 * 60 * 1000,
-    });
+    // For public buckets, use getPublicUrl
+    // For private buckets, use createSignedUrl
+    const { data: publicUrlData } = supabase.storage
+      .from('attachments')
+      .getPublicUrl(filePath);
 
-    return url;
+    return publicUrlData.publicUrl;
   }
 
   /**
@@ -140,11 +137,14 @@ export class AttachmentsService {
     const filePath = 
       `attachments/${schoolId}/${noticeId}/${attachmentId}`;
 
-    const storage = getStorage();
-    const bucket = storage.bucket();
-    const file = bucket.file(filePath);
+    const supabase = createServerClient();
+    const { error } = await supabase.storage
+      .from('attachments')
+      .remove([filePath]);
 
-    await file.delete();
+    if (error) {
+      throw new Error(`Failed to delete attachment: ${error.message}`);
+    }
   }
 
   /**
@@ -162,3 +162,6 @@ export class AttachmentsService {
     }
   }
 }
+
+// Compatibility export for Firebase-to-Supabase migration
+export const AttachmentsService = AttachmentsServiceSupabase;

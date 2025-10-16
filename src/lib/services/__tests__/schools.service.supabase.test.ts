@@ -10,8 +10,8 @@
  * Tests the Supabase-based implementation of SchoolsService.
  */
 
-import { SchoolsServiceSupabase, ValidationError } from '../schools.service.supabase';
-import type { CreateSchoolInput, UpdateSchoolInput } from '../schools.service.supabase';
+import { SchoolsServiceSupabase, ValidationError } from '../schools.service';
+import type { CreateSchoolInput, UpdateSchoolInput } from '../schools.service';
 import { createServerClient } from '../../supabase/server';
 
 // Mock Supabase server client

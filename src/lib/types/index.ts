@@ -5,13 +5,10 @@
  * docs/spec/10_myschool_component.md
  */
 
-import type { Timestamp as ClientTimestamp } from 'firebase/firestore';
-import type { Timestamp as AdminTimestamp } from 'firebase-admin/firestore';
 
 /**
  * Flexible Timestamp type that works with both client and admin SDKs
  */
-export type FirestoreTimestamp = ClientTimestamp | AdminTimestamp;
 
 /**
  * School entity
@@ -22,8 +19,8 @@ export interface School {
   address?: string;
   contactEmail?: string;
   contactPhone?: string;
-  createdAt: FirestoreTimestamp;
-  updatedAt: FirestoreTimestamp;
+  createdAt: string;
+  updatedAt: string;
 }
 
 /**
@@ -36,8 +33,8 @@ export interface User {
   role: 'user' | 'admin';
   displayName?: string;
   groupIds?: string[];
-  createdAt: FirestoreTimestamp;
-  updatedAt: FirestoreTimestamp;
+  createdAt: string;
+  updatedAt: string;
 }
 
 /**
@@ -48,8 +45,8 @@ export interface Group {
   schoolId: string;
   name: string;
   description?: string;
-  createdAt: FirestoreTimestamp;
-  updatedAt: FirestoreTimestamp;
+  createdAt: string;
+  updatedAt: string;
 }
 
 /**
@@ -73,12 +70,12 @@ export interface Notice {
   groupId: string;   // Primary group association (one-to-one)
   title: string;
   body: string;
-  publicationDate: FirestoreTimestamp;
+  publicationDate: string;
   status: 'draft' | 'published' | 'archived';
   attachments?: Attachment[];
   senderName?: string;  // Display name of notice creator
-  createdAt: FirestoreTimestamp;
-  updatedAt: FirestoreTimestamp;
+  createdAt: string;
+  updatedAt: string;
 }
 
 /**
@@ -90,7 +87,7 @@ export interface NoticeRead {
   noticeId: string;
   schoolId: string;  // For query scoping
   groupId: string;   // For query scoping
-  readAt: FirestoreTimestamp;
+  readAt: string;
 }
 
 /**

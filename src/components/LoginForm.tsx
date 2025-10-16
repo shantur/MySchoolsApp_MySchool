@@ -8,7 +8,6 @@
  */
 
 import { useState, FormEvent } from 'react';
-import { useRouter } from 'next/navigation';
 
 interface LoginFormProps {
   redirectUrl?: string;
@@ -19,7 +18,6 @@ export default function LoginForm({ redirectUrl }: LoginFormProps) {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const router = useRouter();
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -32,32 +30,43 @@ export default function LoginForm({ redirectUrl }: LoginFormProps) {
         headers: {
           'Content-Type': 'application/json',
         },
+        credentials: 'same-origin', // Ensure cookies are included in requests
         body: JSON.stringify({ email, password }),
       });
 
+      console.log('[LoginForm] Response received, status:', response.status);
       const data = await response.json();
+      console.log('[LoginForm] Response data:', data);
 
       if (!response.ok) {
+        console.log('[LoginForm] Login failed, showing error');
         setError(data.error || 'Login failed');
         setIsLoading(false);
         return;
       }
 
-      // Login successful - reset loading state
-      setIsLoading(false);
+      // Login successful
+      console.log('[LoginForm] Login successful, preparing redirect');
 
-      // Redirect to the original URL if provided, otherwise based on role
+      // Determine redirect URL
+      let redirectTo: string;
       if (redirectUrl) {
-        console.log('Redirecting to:', redirectUrl);
-        router.push(redirectUrl);
+        console.log('[LoginForm] Redirecting to redirectUrl:', redirectUrl);
+        redirectTo = redirectUrl;
       } else if (data.user.role === 'admin') {
-        console.log('Redirecting admin to:', '/admin/dashboard');
-        router.push('/admin/dashboard');
+        // Use /admin/groups instead of /admin/dashboard for testing
+        // Dashboard uses Firebase handlers which aren't available during Supabase migration
+        console.log('[LoginForm] Redirecting admin to /admin/groups');
+        redirectTo = '/admin/groups';
       } else {
-        const userRedirect = `/${data.user.schoolId}/notices`;
-        console.log('Redirecting user to:', userRedirect);
-        router.push(userRedirect);
+        redirectTo = `/${data.user.schoolId}/notices`;
+        console.log('[LoginForm] Redirecting user to:', redirectTo);
       }
+      
+      // Use window.location.assign() for full page navigation with cookie
+      // This ensures the Set-Cookie header is processed before the next request
+      console.log('[LoginForm] Performing full page navigation to:', redirectTo);
+      window.location.assign(redirectTo);
     } catch (error) {
       console.error('Login error:', error);
       setError('An error occurred. Please try again.');

@@ -1,11 +1,12 @@
 /**
- * Notices Handler
+ * Notices Handler (Supabase)
  * 
- * Business logic for handling notice-related operations.
+ * Business logic for handling notice-related operations with Supabase backend.
  * Implements application-level RLS (Row-Level Security).
+ * Migrated from Firebase to Supabase for Phase 4.
  */
 
-import { NoticesService } from '../services/notices.service';
+import { NoticesServiceSupabase } from '../services/notices.service';
 import type { 
   CreateNoticeInput,
   UpdateNoticeInput,
@@ -22,13 +23,13 @@ import {
  *
  * @param {UserSession | null} session - Current user session
  * @param {CreateNoticeInput} data - Notice data
- * @param {NoticesService} service - Notices service instance
+ * @param {NoticesServiceSupabase} service - Notices service instance
  * @return {Promise<{success: boolean, notice?: Notice, error?: {message: string, code: string}}>} Result object
  */
 export async function createNoticeHandler(
   session: UserSession | null,
   data: CreateNoticeInput,
-  service: NoticesService = new NoticesService()
+  service: NoticesServiceSupabase = new NoticesServiceSupabase()
 ): Promise<{success: boolean, notice?: Notice, error?: {message: string, code: string}}> {
   try {
     requireAdmin(session);
@@ -58,14 +59,14 @@ export async function createNoticeHandler(
  * @param {UserSession | null} session - Current user session
  * @param {string} noticeId - Notice ID
  * @param {string} schoolId - School ID
- * @param {NoticesService} service - Notices service instance
+ * @param {NoticesServiceSupabase} service - Notices service instance
  * @return {Promise<Notice | null>} Notice if found and authorized
  */
 export async function getNoticeHandler(
   session: UserSession | null,
   noticeId: string,
   schoolId: string,
-  service: NoticesService = new NoticesService()
+  service: NoticesServiceSupabase = new NoticesServiceSupabase()
 ): Promise<Notice | null> {
   requireAuth(session);
   checkSchoolAccess(session, schoolId);
@@ -82,84 +83,123 @@ export async function getNoticeHandler(
 
 /**
  * Update a notice (Admin only)
- * 
+ *
  * @param {UserSession | null} session - Current user session
  * @param {string} noticeId - Notice ID
- * @param {UpdateNoticeInput} data - Update data
- * @param {NoticesService} service - Notices service instance
- * @return {Promise<Notice>} Updated notice
+ * @param {UpdateNoticeInput} updates - Fields to update
+ * @param {NoticesServiceSupabase} service - Notices service instance
+ * @return {Promise<{success: boolean, notice?: Notice, error?: {message: string, code: string}}>} Result object
  */
 export async function updateNoticeHandler(
   session: UserSession | null,
   noticeId: string,
-  data: UpdateNoticeInput,
-  service: NoticesService = new NoticesService()
-): Promise<Notice> {
-  requireAdmin(session);
-  return service.updateNotice(noticeId, data);
+  updates: UpdateNoticeInput,
+  service: NoticesServiceSupabase = new NoticesServiceSupabase()
+): Promise<{success: boolean, notice?: Notice, error?: {message: string, code: string}}> {
+  try {
+    requireAdmin(session);
+    
+    const notice = await service.updateNotice(noticeId, updates);
+    return { success: true, notice };
+  } catch (error) {
+    return {
+      success: false,
+      error: {
+        message: error instanceof Error ? error.message : 'Unknown error',
+        code: 'update_failed',
+      },
+    };
+  }
 }
 
 /**
  * Delete a notice (Admin only)
- * 
+ *
  * @param {UserSession | null} session - Current user session
  * @param {string} noticeId - Notice ID
- * @param {NoticesService} service - Notices service instance
- * @return {Promise<void>}
+ * @param {NoticesServiceSupabase} service - Notices service instance
+ * @return {Promise<{success: boolean, error?: {message: string, code: string}}>} Result object
  */
 export async function deleteNoticeHandler(
   session: UserSession | null,
   noticeId: string,
-  service: NoticesService = new NoticesService()
-): Promise<void> {
-  requireAdmin(session);
-  return service.deleteNotice(noticeId);
+  service: NoticesServiceSupabase = new NoticesServiceSupabase()
+): Promise<{success: boolean, error?: {message: string, code: string}}> {
+  try {
+    requireAdmin(session);
+    
+    await service.deleteNotice(noticeId);
+    return { success: true };
+  } catch (error) {
+    return {
+      success: false,
+      error: {
+        message: error instanceof Error ? error.message : 'Unknown error',
+        code: 'deletion_failed',
+      },
+    };
+  }
 }
 
 /**
- * List notices for a school
- * 
+ * List notices for a specific school
+ *
  * @param {UserSession | null} session - Current user session
  * @param {string} schoolId - School ID
  * @param {string} status - Optional status filter
- * @param {NoticesService} service - Notices service instance
- * @return {Promise<Notice[]>} List of notices
+ * @param {NoticesServiceSupabase} service - Notices service instance
+ * @return {Promise<Notice[]>} Array of notices
  */
-export async function listNoticesHandler(
+export async function listNoticesBySchoolHandler(
   session: UserSession | null,
   schoolId: string,
   status?: 'draft' | 'published' | 'archived',
-  service: NoticesService = new NoticesService()
+  service: NoticesServiceSupabase = new NoticesServiceSupabase()
 ): Promise<Notice[]> {
   requireAuth(session);
   checkSchoolAccess(session, schoolId);
-
-  // Regular users can only see published notices
-  const filterStatus = 
-    session!.role === 'admin' ? status : 'published';
-
-  return service.listNoticesBySchool(schoolId, filterStatus);
+  
+  return await service.listNoticesBySchool(schoolId, status);
 }
 
-// Convenience exports with alternative naming for UI components
-export const getNoticesBySchool = listNoticesHandler;
-export const getNoticeById = (
-  schoolId: string,
-  noticeId: string,
-  session: UserSession | null
-) => getNoticeHandler(session, noticeId, schoolId);
-
 /**
- * Get all notices (Admin only)
+ * List notices for a specific group
  *
  * @param {UserSession | null} session - Current user session
- * @param {NoticesService} service - Notices service instance
- * @return {Promise<Notice[]>} List of all notices
+ * @param {string} groupId - Group ID
+ * @param {string} schoolId - School ID
+ * @param {string} status - Optional status filter
+ * @param {NoticesServiceSupabase} service - Notices service instance
+ * @return {Promise<Notice[]>} Array of notices
  */
-export async function getAllNotices(
+export async function listNoticesByGroupHandler(
   session: UserSession | null,
-  service: NoticesService = new NoticesService()
+  groupId: string,
+  schoolId: string,
+  status?: 'draft' | 'published' | 'archived',
+  service: NoticesServiceSupabase = new NoticesServiceSupabase()
+): Promise<Notice[]> {
+  requireAuth(session);
+  checkSchoolAccess(session, schoolId);
+  
+  return await service.listNoticesByGroup(groupId, status);
+}
+
+// Convenience export with alternative naming for UI components
+export const getNoticesBySchool = listNoticesBySchoolHandler;
+
+// Compatibility exports for Firebase-to-Supabase migration
+export const getNoticeById = getNoticeHandler;
+export const getAllNotices = getAllNoticesForAdmin;
+export const listNoticesHandler = listNoticesBySchoolHandler;
+
+// Admin-only: Get all notices across all schools
+export async function getAllNoticesForAdmin(
+  session: UserSession | null,
+  service: NoticesServiceSupabase = new NoticesServiceSupabase()
 ): Promise<Notice[]> {
   requireAdmin(session);
-  return service.listAllNotices();
+  
+  // For admin, fetch all notices across all schools
+  return await service.listAllNotices();
 }

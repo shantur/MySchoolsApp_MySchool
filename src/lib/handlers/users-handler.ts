@@ -1,20 +1,44 @@
 /**
- * Users Handler
+ * Users Handler (Supabase)
  *
  * Handles user-related data operations for the MySchool application.
  */
 
-import { getAdminDb, getAdminAuth } from '@/lib/firebase/admin-lazy';
 import { User } from '@/lib/types';
+import { createServerClient } from '@/lib/supabase/server';
 
-// Lazy initialization of Firestore
-const getDb = () => {
-  const db = getAdminDb();
-  if (!db) {
-    throw new Error('Firestore is not available');
-  }
-  return db;
-};
+/**
+ * Database row type (snake_case from PostgreSQL)
+ */
+interface UserRow {
+  id: string;
+  email: string;
+  school_id: string;
+  role: 'user' | 'admin';
+  display_name?: string;
+  group_ids?: string[];
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * Convert database row to User type (snake_case → camelCase)
+ * 
+ * @param row - Database row
+ * @returns User - Typed User object
+ */
+function rowToUser(row: UserRow): User {
+  return {
+    uid: row.id,
+    email: row.email,
+    schoolId: row.school_id,
+    role: row.role,
+    ...(row.display_name && { displayName: row.display_name }),
+    ...(row.group_ids && { groupIds: row.group_ids }),
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
 
 /**
  * Get all users (admin only)
@@ -23,173 +47,115 @@ const getDb = () => {
  */
 export async function getAllUsers(): Promise<User[]> {
   try {
-    const db = getDb();
-    const usersSnapshot = await db.collection('users').get();
+    const supabase = createServerClient();
+    const { data: users, error } = await supabase
+      .from('users')
+      .select('*')
+      .order('created_at', { ascending: false });
 
-    const users: User[] = [];
-    usersSnapshot.forEach((doc: any) => {
-      const data = doc.data();
-      users.push({
-        uid: doc.id,
-        email: data.email,
-        schoolId: data.schoolId,
-        role: data.role,
-        displayName: data.displayName,
-        groupIds: data.groupIds || [],
-        createdAt: data.createdAt,
-        updatedAt: data.updatedAt,
-      });
-    });
+    if (error) {
+      console.error('Error fetching users:', error);
+      return [];
+    }
 
-    return users;
+    return (users as UserRow[]).map(rowToUser);
   } catch (error) {
-    console.error('Error fetching users:', error);
-    throw new Error('Failed to fetch users');
+    console.error('Error in getAllUsers:', error);
+    return [];
   }
 }
 
 /**
- * Get user by UID
+ * Get a user by ID
  *
- * @param uid - User UID
- * @returns Promise<User | null> - User data or null if not found
+ * @param uid - User ID
+ * @returns Promise<User | null> - User object or null if not found
  */
 export async function getUserById(uid: string): Promise<User | null> {
   try {
-    console.log(`[UsersHandler] Getting user by UID: ${uid}`);
-    const db = getDb();
-    if (!db) {
-      console.log(`[UsersHandler] Firestore not available`);
-      return null;
-    }
-    console.log(`[UsersHandler] Firestore available, fetching document...`);
-    const userDoc = await db.collection('users').doc(uid).get();
-    console.log(`[UsersHandler] Document exists: ${userDoc.exists}`);
+    const supabase = createServerClient();
+    const { data: user, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('id', uid)  // Database column is 'id', not 'uid'
+      .single();
 
-    if (!userDoc.exists) {
+    if (error) {
+      console.error('Error fetching user:', error);
       return null;
     }
 
-    const data = userDoc.data()!;
-    return {
-      uid: userDoc.id,
-      email: data.email,
-      schoolId: data.schoolId,
-      role: data.role,
-      displayName: data.displayName,
-      groupIds: data.groupIds || [],
-      createdAt: data.createdAt,
-      updatedAt: data.updatedAt,
-    };
+    return user ? rowToUser(user as UserRow) : null;
   } catch (error) {
-    console.error('Error fetching user:', error);
-    throw new Error('Failed to fetch user');
+    console.error('Error in getUserById:', error);
+    return null;
   }
 }
 
 /**
- * Update user by UID
+ * Update a user
  *
- * @param uid - User UID
- * @param updateData - Partial user data to update
- * @returns Promise<User> - Updated user data
+ * @param uid - User ID
+ * @param updates - Partial user data to update
+ * @returns Promise<User | null> - Updated user or null if failed
  */
 export async function updateUserHandler(
   uid: string,
-  updateData: {
-    email: string;
-    schoolId: string;
-    role: 'user' | 'admin';
-    displayName?: string;
-    groupIds?: string[];
-  }
-): Promise<User> {
+  updates: Partial<User>
+): Promise<User | null> {
   try {
-    console.log(`[UsersHandler] Updating user: ${uid}`);
-    const db = getDb();
-    const auth = getAdminAuth();
-
-    if (!db || !auth) {
-      throw new Error('Firebase services not available');
-    }
-
-    // Check if user exists
-    const userDoc = await db.collection('users').doc(uid).get();
-    if (!userDoc.exists) {
-      throw new Error('User not found');
-    }
-
-    const currentData = userDoc.data()!;
-
-    // Update email in Firebase Auth if changed
-    if (updateData.email !== currentData.email) {
-      await auth.updateUser(uid, { email: updateData.email });
-    }
-
-    // Prepare update data for Firestore
-    const firestoreUpdateData: Record<string, unknown> = {
-      email: updateData.email,
-      schoolId: updateData.schoolId,
-      role: updateData.role,
-      updatedAt: new Date(),
+    const supabase = createServerClient();
+    
+    // Map camelCase to snake_case for database
+    const updateData: Record<string, unknown> = {
+      updated_at: new Date().toISOString(),
     };
+    
+    if (updates.email !== undefined) updateData.email = updates.email;
+    if (updates.schoolId !== undefined) updateData.school_id = updates.schoolId;
+    if (updates.role !== undefined) updateData.role = updates.role;
+    if (updates.displayName !== undefined) updateData.display_name = updates.displayName;
+    if (updates.groupIds !== undefined) updateData.group_ids = updates.groupIds;
+    
+    const { data: user, error } = await supabase
+      .from('users')
+      .update(updateData)
+      .eq('id', uid)  // Database column is 'id', not 'uid'
+      .select()
+      .single();
 
-    if (updateData.displayName !== undefined) {
-      firestoreUpdateData.displayName = updateData.displayName;
+    if (error) {
+      console.error('Error updating user:', error);
+      return null;
     }
 
-    if (updateData.groupIds !== undefined) {
-      firestoreUpdateData.groupIds = updateData.groupIds;
-    }
-
-    // Update user in Firestore
-    await db.collection('users').doc(uid).update(firestoreUpdateData);
-
-    // Fetch and return updated user
-    const updatedUser = await getUserById(uid);
-    if (!updatedUser) {
-      throw new Error('Failed to retrieve updated user');
-    }
-
-    console.log(`[UsersHandler] User updated successfully: ${uid}`);
-    return updatedUser;
+    return user ? rowToUser(user as UserRow) : null;
   } catch (error) {
-    console.error('Error updating user:', error);
-    throw error instanceof Error ? error : new Error('Failed to update user');
+    console.error('Error in updateUserHandler:', error);
+    return null;
   }
 }
 
 /**
- * Delete user by UID
+ * Delete a user
  *
- * @param uid - User UID
+ * @param uid - User ID
  * @returns Promise<void>
  */
 export async function deleteUserHandler(uid: string): Promise<void> {
   try {
-    console.log(`[UsersHandler] Deleting user: ${uid}`);
-    const db = getDb();
-    const auth = getAdminAuth();
+    const supabase = createServerClient();
+    const { error } = await supabase
+      .from('users')
+      .delete()
+      .eq('id', uid);  // Database column is 'id', not 'uid'
 
-    if (!db || !auth) {
-      throw new Error('Firebase services not available');
+    if (error) {
+      console.error('Error deleting user:', error);
+      throw error;
     }
-
-    // Check if user exists
-    const userDoc = await db.collection('users').doc(uid).get();
-    if (!userDoc.exists) {
-      throw new Error('User not found');
-    }
-
-    // Delete user from Firebase Auth
-    await auth.deleteUser(uid);
-
-    // Delete user from Firestore
-    await db.collection('users').doc(uid).delete();
-
-    console.log(`[UsersHandler] User deleted successfully: ${uid}`);
   } catch (error) {
-    console.error('Error deleting user:', error);
-    throw error instanceof Error ? error : new Error('Failed to delete user');
+    console.error('Error in deleteUserHandler:', error);
+    throw error;
   }
 }

@@ -5,9 +5,9 @@
  * HTML structure designed for parsing by Flutter adapter.
  */
 
-import { getUserSession } from '@/lib/auth/session.supabase';
-import { getNoticesBySchool } from '@/lib/handlers/notices-handler.supabase';
-import { getBulkReadStatus } from '@/lib/services/notice-read.service.supabase';
+import { getUserSession } from '@/lib/auth/session';
+import { getNoticesBySchool } from '@/lib/handlers/notices-handler';
+import { getBulkReadStatus } from '@/lib/services/notice-read.service';
 import Link from 'next/link';
 import NoticeListItem from './NoticeListItem';
 

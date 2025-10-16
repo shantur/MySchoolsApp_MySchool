@@ -5,7 +5,7 @@
  * Implements application-level RLS (Row-Level Security).
  */
 
-import { GroupsService } from '../services/groups.service';
+import { GroupsServiceSupabase } from '../services/groups.service';
 import type { 
   CreateGroupInput,
   UpdateGroupInput,
@@ -23,13 +23,13 @@ import {
  * 
  * @param {UserSession | null} session - Current user session
  * @param {CreateGroupInput} data - Group data
- * @param {GroupsService} service - Groups service instance
+ * @param {GroupsServiceSupabase} service - Groups service instance
  * @return {Promise<Group>} Created group
  */
 export async function createGroupHandler(
   session: UserSession | null,
   data: CreateGroupInput,
-  service: GroupsService = new GroupsService()
+  service: GroupsServiceSupabase = new GroupsServiceSupabase()
 ): Promise<Group> {
   requireAdmin(session);
   return service.createGroup(data);
@@ -41,14 +41,14 @@ export async function createGroupHandler(
  * @param {UserSession | null} session - Current user session
  * @param {string} groupId - Group ID
  * @param {string} schoolId - School ID
- * @param {GroupsService} service - Groups service instance
+ * @param {GroupsServiceSupabase} service - Groups service instance
  * @return {Promise<Group | null>} Group if found and authorized
  */
 export async function getGroupHandler(
   session: UserSession | null,
   groupId: string,
   schoolId: string,
-  service: GroupsService = new GroupsService()
+  service: GroupsServiceSupabase = new GroupsServiceSupabase()
 ): Promise<Group | null> {
   requireAuth(session);
   
@@ -73,14 +73,14 @@ export async function getGroupHandler(
  * @param {UserSession | null} session - Current user session
  * @param {string} groupId - Group ID
  * @param {UpdateGroupInput} data - Update data
- * @param {GroupsService} service - Groups service instance
+ * @param {GroupsServiceSupabase} service - Groups service instance
  * @return {Promise<Group>} Updated group
  */
 export async function updateGroupHandler(
   session: UserSession | null,
   groupId: string,
   data: UpdateGroupInput,
-  service: GroupsService = new GroupsService()
+  service: GroupsServiceSupabase = new GroupsServiceSupabase()
 ): Promise<Group> {
   requireAdmin(session);
   return service.updateGroup(groupId, data);
@@ -91,13 +91,13 @@ export async function updateGroupHandler(
  * 
  * @param {UserSession | null} session - Current user session
  * @param {string} groupId - Group ID
- * @param {GroupsService} service - Groups service instance
+ * @param {GroupsServiceSupabase} service - Groups service instance
  * @return {Promise<void>}
  */
 export async function deleteGroupHandler(
   session: UserSession | null,
   groupId: string,
-  service: GroupsService = new GroupsService()
+  service: GroupsServiceSupabase = new GroupsServiceSupabase()
 ): Promise<void> {
   requireAdmin(session);
   return service.deleteGroup(groupId);
@@ -108,13 +108,13 @@ export async function deleteGroupHandler(
  *
  * @param {UserSession | null} session - Current user session
  * @param {string} schoolId - School ID
- * @param {GroupsService} service - Groups service instance
+ * @param {GroupsServiceSupabase} service - Groups service instance
  * @return {Promise<Group[]>} List of groups
  */
 export async function listGroupsHandler(
   session: UserSession | null,
   schoolId: string,
-  service: GroupsService = new GroupsService()
+  service: GroupsServiceSupabase = new GroupsServiceSupabase()
 ): Promise<Group[]> {
   requireAuth(session);
   checkSchoolAccess(session, schoolId);
@@ -140,12 +140,12 @@ export async function listGroupsHandler(
  * Get all groups for a school (used for profile display)
  *
  * @param {string} schoolId - School ID
- * @param {GroupsService} service - Groups service instance
+ * @param {GroupsServiceSupabase} service - Groups service instance
  * @return {Promise<Group[]>} List of all groups for the school
  */
 export async function getGroupsBySchool(
   schoolId: string,
-  service: GroupsService = new GroupsService()
+  service: GroupsServiceSupabase = new GroupsServiceSupabase()
 ): Promise<Group[]> {
   return service.listGroupsBySchool(schoolId);
 }
@@ -154,12 +154,12 @@ export async function getGroupsBySchool(
  * Get all groups (alias for listGroupsHandler with session's school)
  * 
  * @param {UserSession | null} session - Current user session
- * @param {GroupsService} service - Groups service instance
+ * @param {GroupsServiceSupabase} service - Groups service instance
  * @return {Promise<Group[]>} List of groups
  */
 export async function getAllGroups(
   session: UserSession | null,
-  service: GroupsService = new GroupsService()
+  service: GroupsServiceSupabase = new GroupsServiceSupabase()
 ): Promise<Group[]> {
   requireAuth(session);
   return listGroupsHandler(session, session!.schoolId, service);

@@ -10,8 +10,8 @@
  * Tests the Supabase-based implementation of GroupsService following TDD principles.
  */
 
-import { GroupsServiceSupabase } from '../groups.service.supabase';
-import type { CreateGroupInput, UpdateGroupInput } from '../groups.service.supabase';
+import { GroupsServiceSupabase } from '../groups.service';
+import type { CreateGroupInput, UpdateGroupInput } from '../groups.service';
 import { createServerClient } from '../../supabase/server';
 
 // Mock Supabase server client

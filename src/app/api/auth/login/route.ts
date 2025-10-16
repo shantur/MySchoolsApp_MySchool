@@ -85,6 +85,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     );
 
     // Set session cookie
+    // Don't set explicit domain - let browser handle it for better compatibility
     const cookieValue = [
       `${SESSION_CONFIG.cookieName}=${result.token}`,
       `Max-Age=${SESSION_CONFIG.maxAge / 1000}`,
@@ -98,6 +99,14 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     response.headers.set('Set-Cookie', cookieValue);
 
+    console.log('[Login Route] Session cookie set:', {
+      cookieName: SESSION_CONFIG.cookieName,
+      maxAge: SESSION_CONFIG.maxAge / 1000,
+      path: SESSION_CONFIG.path,
+      sameSite: SESSION_CONFIG.sameSite,
+      httpOnly: true,
+      secure: SESSION_CONFIG.secure,
+    });
     console.log('[Login Route] Response prepared, returning...');
     return response;
     

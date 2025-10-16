@@ -1,13 +1,11 @@
 /**
- * Notice Read Tracking Service
+ * Notice Read Tracking Service (Supabase)
  * 
- * Manages read/unread status of notices for users using a separate
- * noticeReads collection for scalability and efficient queries.
+ * Manages read/unread status of notices for users using PostgreSQL notice_reads table.
+ * Migrated from Firebase Firestore to Supabase for Phase 4.
  */
 
-import { getAdminDb } from '../firebase/admin-lazy';
-import type { NoticeRead } from '../types';
-import { FieldValue } from 'firebase-admin/firestore';
+import { createServerClient } from '../supabase/server';
 
 /**
  * Mark a notice as read by a user
@@ -24,24 +22,26 @@ export async function markNoticeAsRead(
   schoolId: string,
   groupId: string
 ): Promise<void> {
-  const db = getAdminDb();
-  
-  if (!db) {
-    throw new Error('Database not initialized');
-  }
+  const supabase = createServerClient();
 
-  // Document ID format: {userId}_{noticeId} for easy lookup
-  const readDocId = `${userId}_${noticeId}`;
-  
-  const noticeReadData: Omit<NoticeRead, 'readAt'> & { readAt: FirebaseFirestore.FieldValue } = {
-    userId,
-    noticeId,
-    schoolId,
-    groupId,
-    readAt: FieldValue.serverTimestamp(),
+  // In Supabase, we use upsert with unique constraint on (user_id, notice_id)
+  const readData = {
+    user_id: userId,
+    notice_id: noticeId,
+    school_id: schoolId,
+    group_id: groupId,
+    // read_at will be set by database default (NOW())
   };
 
-  await db.collection('noticeReads').doc(readDocId).set(noticeReadData, { merge: true });
+  const { error } = await supabase
+    .from('notice_reads')
+    .upsert(readData, {
+      onConflict: 'user_id,notice_id',
+    });
+
+  if (error) {
+    throw new Error(`Failed to mark notice as read: ${error.message}`);
+  }
 }
 
 /**
@@ -55,16 +55,25 @@ export async function hasUserReadNotice(
   userId: string,
   noticeId: string
 ): Promise<boolean> {
-  const db = getAdminDb();
-  
-  if (!db) {
-    throw new Error('Database not initialized');
+  const supabase = createServerClient();
+
+  const { data, error } = await supabase
+    .from('notice_reads')
+    .select('id')
+    .eq('user_id', userId)
+    .eq('notice_id', noticeId)
+    .single();
+
+  // PGRST116 means not found
+  if (error && error.code === 'PGRST116') {
+    return false;
   }
 
-  const readDocId = `${userId}_${noticeId}`;
-  const doc = await db.collection('noticeReads').doc(readDocId).get();
-  
-  return doc.exists;
+  if (error) {
+    throw new Error(`Failed to check read status: ${error.message}`);
+  }
+
+  return data !== null;
 }
 
 /**
@@ -78,21 +87,24 @@ export async function getUserReadNotices(
   userId: string,
   schoolId?: string
 ): Promise<string[]> {
-  const db = getAdminDb();
-  
-  if (!db) {
-    throw new Error('Database not initialized');
-  }
+  const supabase = createServerClient();
 
-  let query = db.collection('noticeReads').where('userId', '==', userId);
-  
+  let query = supabase
+    .from('notice_reads')
+    .select('notice_id')
+    .eq('user_id', userId);
+
   if (schoolId) {
-    query = query.where('schoolId', '==', schoolId);
+    query = query.eq('school_id', schoolId);
   }
 
-  const snapshot = await query.get();
-  
-  return snapshot.docs.map((doc: any) => doc.data().noticeId);
+  const { data, error } = await query.limit(10000);
+
+  if (error) {
+    throw new Error(`Failed to get user read notices: ${error.message}`);
+  }
+
+  return (data || []).map((row: { notice_id: string }) => row.notice_id);
 }
 
 /**
@@ -107,41 +119,33 @@ export async function getBulkReadStatus(
   userId: string,
   noticeIds: string[]
 ): Promise<Record<string, boolean>> {
-  const db = getAdminDb();
-  
-  if (!db) {
-    throw new Error('Database not initialized');
-  }
-
   if (noticeIds.length === 0) {
     return {};
   }
 
-  // Firestore 'in' query limit is 10, so we need to batch
-  const batchSize = 10;
-  const results: Record<string, boolean> = {};
-  
+  const supabase = createServerClient();
+
+  // PostgreSQL doesn't have the same 10-item IN limit as Firestore
+  const { data, error } = await supabase
+    .from('notice_reads')
+    .select('notice_id')
+    .eq('user_id', userId)
+    .in('notice_id', noticeIds);
+
+  if (error) {
+    throw new Error(`Failed to get bulk read status: ${error.message}`);
+  }
+
   // Initialize all as unread
+  const results: Record<string, boolean> = {};
   noticeIds.forEach(noticeId => {
     results[noticeId] = false;
   });
 
-  // Process in batches
-  for (let i = 0; i < noticeIds.length; i += batchSize) {
-    const batch = noticeIds.slice(i, i + batchSize);
-    const docIds = batch.map(noticeId => `${userId}_${noticeId}`);
-    
-    // Query by document IDs
-    const docs = await Promise.all(
-      docIds.map(docId => db.collection('noticeReads').doc(docId).get())
-    );
-    
-    docs.forEach((doc, index) => {
-      if (doc.exists) {
-        results[batch[index]] = true;
-      }
-    });
-  }
+  // Mark read notices as true
+  (data || []).forEach((row: { notice_id: string }) => {
+    results[row.notice_id] = true;
+  });
 
   return results;
 }
@@ -153,28 +157,33 @@ export async function getBulkReadStatus(
  * @returns Promise<number> - Number of reads deleted
  */
 export async function deleteNoticeReads(noticeId: string): Promise<number> {
-  const db = getAdminDb();
-  
-  if (!db) {
-    throw new Error('Database not initialized');
+  const supabase = createServerClient();
+
+  // First get count, then delete
+  const { data: readsBefore, error: countError } = await supabase
+    .from('notice_reads')
+    .select('id', { count: 'exact', head: true })
+    .eq('notice_id', noticeId);
+
+  if (countError) {
+    throw new Error(`Failed to count notice reads: ${countError.message}`);
   }
 
-  const snapshot = await db
-    .collection('noticeReads')
-    .where('noticeId', '==', noticeId)
-    .get();
+  const count = readsBefore?.length || 0;
 
-  if (snapshot.empty) {
+  if (count === 0) {
     return 0;
   }
 
-  // Delete in batches
-  const batch = db.batch();
-  snapshot.docs.forEach((doc: any) => {
-    batch.delete(doc.ref);
-  });
+  // Delete all reads for this notice
+  const { error: deleteError } = await supabase
+    .from('notice_reads')
+    .delete()
+    .eq('notice_id', noticeId);
 
-  await batch.commit();
-  
-  return snapshot.size;
+  if (deleteError) {
+    throw new Error(`Failed to delete notice reads: ${deleteError.message}`);
+  }
+
+  return count;
 }

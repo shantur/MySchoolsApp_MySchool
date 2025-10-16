@@ -1,22 +1,13 @@
 /**
- * Groups Service
+ * Groups Service (Supabase)
  * 
- * Provides CRUD operations for managing groups/classes in Firestore.
+ * Provides CRUD operations for managing groups/classes using Supabase PostgreSQL.
  * Implements business logic and data validation for group entities.
+ * Migrated from Firebase Firestore to Supabase for Phase 4.
  */
 
-import { getAdminDb } from '../firebase/admin-lazy';
+import { createServerClient } from '../supabase/server';
 import type { Group } from '../types';
-import { Timestamp } from 'firebase-admin/firestore';
-
-// Helper function to get Firestore instance
-const getDb = () => {
-  const db = getAdminDb();
-  if (!db) {
-    throw new Error('Firestore is not available');
-  }
-  return db;
-};
 
 /**
  * Input type for creating a new group
@@ -36,10 +27,48 @@ export interface UpdateGroupInput {
 }
 
 /**
- * Groups Service class for managing group entities
+ * Database row type (snake_case from PostgreSQL)
  */
-export class GroupsService {
-  private readonly collection = 'groups';
+interface GroupRow {
+  id: string;
+  school_id: string;
+  name: string;
+  description?: string;
+  created_at: string | Date;
+  updated_at: string | Date;
+}
+
+/**
+ * Groups Service class for managing group entities with Supabase
+ */
+export class GroupsServiceSupabase {
+  private readonly table = 'groups';
+
+  /**
+   * Helper to get Supabase client
+   * 
+   * @return {ReturnType<typeof createServerClient>} Supabase client
+   */
+  private getClient() {
+    return createServerClient();
+  }
+
+  /**
+   * Convert database row to Group type (snake_case → camelCase)
+   * 
+   * @param {GroupRow} row - Database row
+   * @return {Group} Typed Group object
+   */
+  private rowToGroup(row: GroupRow): Group {
+    return {
+      groupId: row.id,
+      schoolId: row.school_id,
+      name: row.name,
+      ...(row.description && { description: row.description }),
+      createdAt: new Date(row.created_at) as any,
+      updatedAt: new Date(row.updated_at) as any,
+    };
+  }
 
   /**
    * Create a new group
@@ -57,22 +86,25 @@ export class GroupsService {
       throw new Error('Group name is required');
     }
 
-    const now = Timestamp.now();
+    // Prepare group data (camelCase → snake_case)
     const groupData = {
-      schoolId: input.schoolId.trim(),
+      school_id: input.schoolId.trim(),
       name: input.name.trim(),
       ...(input.description && { description: input.description.trim() }),
-      createdAt: now,
-      updatedAt: now,
     };
 
-    const db = getDb();
-    const docRef = await db.collection(this.collection).add(groupData);
+    const supabase = this.getClient();
+    const { data, error } = await supabase
+      .from(this.table)
+      .insert(groupData)
+      .select()
+      .single();
 
-    return {
-      groupId: docRef.id,
-      ...groupData,
-    };
+    if (error) {
+      throw new Error(`Failed to create group: ${error.message}`);
+    }
+
+    return this.rowToGroup(data as GroupRow);
   }
 
   /**
@@ -82,18 +114,23 @@ export class GroupsService {
    * @return {Promise<Group | null>} Group if found, null otherwise
    */
   async getGroupById(groupId: string): Promise<Group | null> {
-    const db = getDb();
-    const doc = await db.collection(this.collection).doc(groupId).get();
+    const supabase = this.getClient();
+    const { data, error } = await supabase
+      .from(this.table)
+      .select('*')
+      .eq('id', groupId)
+      .single();
 
-    if (!doc.exists) {
+    // PGRST116 is Supabase's "not found" error code
+    if ((error && error.code === 'PGRST116') || !data) {
       return null;
     }
 
-    const data = doc.data();
-    return {
-      groupId: doc.id,
-      ...data,
-    } as Group;
+    if (error) {
+      throw new Error(`Failed to get group: ${error.message}`);
+    }
+
+    return this.rowToGroup(data as GroupRow);
   }
 
   /**
@@ -113,24 +150,30 @@ export class GroupsService {
       throw new Error('Group not found');
     }
 
-    // Prepare update data
-    const updateData: Partial<Group> & { updatedAt: import('firebase-admin/firestore').Timestamp } = {
-      ...updates,
-      updatedAt: Timestamp.now(),
-    };
+    // Prepare update data (camelCase → snake_case)
+    const updateData: Record<string, unknown> = {};
+    
+    if (updates.name !== undefined) {
+      updateData.name = updates.name;
+    }
+    if (updates.description !== undefined) {
+      updateData.description = updates.description;
+    }
 
-    // Clean up undefined fields
-    Object.keys(updateData).forEach(
-      key => updateData[key as keyof typeof updateData] === undefined && delete updateData[key as keyof typeof updateData]
-    );
+    // Supabase handles updated_at automatically via trigger
+    const supabase = this.getClient();
+    const { data, error } = await supabase
+      .from(this.table)
+      .update(updateData)
+      .eq('id', groupId)
+      .select()
+      .single();
 
-    const db = getDb();
-    await db
-      .collection(this.collection)
-      .doc(groupId)
-      .set(updateData, { merge: true });
+    if (error) {
+      throw new Error(`Failed to update group: ${error.message}`);
+    }
 
-    return this.getGroupById(groupId) as Promise<Group>;
+    return this.rowToGroup(data as GroupRow);
   }
 
   /**
@@ -146,8 +189,15 @@ export class GroupsService {
       throw new Error('Group not found');
     }
 
-    const db = getDb();
-    await db.collection(this.collection).doc(groupId).delete();
+    const supabase = this.getClient();
+    const { error } = await supabase
+      .from(this.table)
+      .delete()
+      .eq('id', groupId);
+
+    if (error) {
+      throw new Error(`Failed to delete group: ${error.message}`);
+    }
   }
 
   /**
@@ -157,17 +207,19 @@ export class GroupsService {
    * @return {Promise<Group[]>} Array of groups for the school
    */
   async listGroupsBySchool(schoolId: string): Promise<Group[]> {
-    const db = getDb();
-    const snapshot = await db
-      .collection(this.collection)
-      .where('schoolId', '==', schoolId)
-      .orderBy('name', 'asc')
-      .get();
+    const supabase = this.getClient();
+    const { data, error } = await supabase
+      .from(this.table)
+      .select('*')
+      .eq('school_id', schoolId)
+      .order('name', { ascending: true })
+      .limit(1000);
 
-    return snapshot.docs.map((doc: import('firebase-admin/firestore').QueryDocumentSnapshot) => ({
-      groupId: doc.id,
-      ...doc.data(),
-    })) as Group[];
+    if (error) {
+      throw new Error(`Failed to list groups by school: ${error.message}`);
+    }
+
+    return (data as GroupRow[]).map(row => this.rowToGroup(row));
   }
 
   /**
@@ -176,17 +228,19 @@ export class GroupsService {
    * @return {Promise<Group[]>} Array of all groups
    */
   async listAllGroups(): Promise<Group[]> {
-    const db = getDb();
-    const snapshot = await db
-      .collection(this.collection)
-      .get();
+    const supabase = this.getClient();
+    const { data, error } = await supabase
+      .from(this.table)
+      .select('*')
+      .limit(10000);
 
-    // Sort in memory instead of using Firestore compound index
-    const groups = snapshot.docs.map((doc: import('firebase-admin/firestore').QueryDocumentSnapshot) => ({
-      groupId: doc.id,
-      ...doc.data(),
-    })) as Group[];
+    if (error) {
+      throw new Error(`Failed to list all groups: ${error.message}`);
+    }
 
+    // Sort in memory by schoolId and name (same as Firestore implementation)
+    const groups = (data as GroupRow[]).map(row => this.rowToGroup(row));
+    
     return groups.sort((a, b) => {
       if (a.schoolId !== b.schoolId) {
         return a.schoolId.localeCompare(b.schoolId);
@@ -195,3 +249,6 @@ export class GroupsService {
     });
   }
 }
+
+// Compatibility export for Firebase-to-Supabase migration
+export const GroupsService = GroupsServiceSupabase;

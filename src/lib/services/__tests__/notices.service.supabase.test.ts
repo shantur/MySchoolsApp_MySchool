@@ -11,8 +11,8 @@
  * Covers CRUD operations, validation, and query patterns for notices with PostgreSQL backend.
  */
 
-import { NoticesServiceSupabase } from '../notices.service.supabase';
-import type { CreateNoticeInput, UpdateNoticeInput } from '../notices.service.supabase';
+import { NoticesServiceSupabase } from '../notices.service';
+import type { CreateNoticeInput, UpdateNoticeInput } from '../notices.service';
 import { createServerClient } from '../../supabase/server';
 
 // Mock Supabase server client

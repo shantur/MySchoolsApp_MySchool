@@ -5,7 +5,7 @@
  * Implements application-level RLS (Row-Level Security).
  */
 
-import { SchoolsService } from '../services/schools.service';
+import { SchoolsServiceSupabase } from '../services/schools.service';
 import type { 
   CreateSchoolInput,
   UpdateSchoolInput,
@@ -16,22 +16,22 @@ import {
   requireAuth,
   checkSchoolAccess,
 } from '../auth/authorization';
-import { AuditService } from '../services/audit.service';
+import { AuditServiceSupabase } from '../services/audit.service';
 
 /**
  * Create a new school (Admin only)
  * 
  * @param {UserSession | null} session - Current user session
  * @param {CreateSchoolInput} data - School data
- * @param {SchoolsService} service - Schools service instance
+ * @param {SchoolsServiceSupabase} service - Schools service instance
  * @param {AuditService} auditService - Audit service instance
  * @return {Promise<School>} Created school
  */
 export async function createSchoolHandler(
   session: UserSession | null,
   data: CreateSchoolInput,
-  service: SchoolsService = new SchoolsService(),
-  auditService: AuditService = new AuditService()
+  service: SchoolsServiceSupabase = new SchoolsServiceSupabase(),
+  auditService: AuditServiceSupabase = new AuditServiceSupabase()
 ): Promise<School> {
   // Only admins can create schools
   requireAdmin(session);
@@ -52,13 +52,13 @@ export async function createSchoolHandler(
  * 
  * @param {UserSession | null} session - Current user session
  * @param {string} schoolId - School ID
- * @param {SchoolsService} service - Schools service instance
+ * @param {SchoolsServiceSupabase} service - Schools service instance
  * @return {Promise<School | null>} School if found and authorized
  */
 export async function getSchoolHandler(
   session: UserSession | null,
   schoolId: string,
-  service: SchoolsService = new SchoolsService()
+  service: SchoolsServiceSupabase = new SchoolsServiceSupabase()
 ): Promise<School | null> {
   // Check authentication and school access
   requireAuth(session);
@@ -73,7 +73,7 @@ export async function getSchoolHandler(
  * @param {UserSession | null} session - Current user session
  * @param {string} schoolId - School ID
  * @param {UpdateSchoolInput} data - Update data
- * @param {SchoolsService} service - Schools service instance
+ * @param {SchoolsServiceSupabase} service - Schools service instance
  * @param {AuditService} auditService - Audit service instance
  * @return {Promise<School>} Updated school
  */
@@ -81,8 +81,8 @@ export async function updateSchoolHandler(
   session: UserSession | null,
   schoolId: string,
   data: UpdateSchoolInput,
-  service: SchoolsService = new SchoolsService(),
-  auditService: AuditService = new AuditService()
+  service: SchoolsServiceSupabase = new SchoolsServiceSupabase(),
+  auditService: AuditServiceSupabase = new AuditServiceSupabase()
 ): Promise<School> {
   // Only admins can update schools
   requireAdmin(session);
@@ -110,15 +110,15 @@ export async function updateSchoolHandler(
  * 
  * @param {UserSession | null} session - Current user session
  * @param {string} schoolId - School ID
- * @param {SchoolsService} service - Schools service instance
+ * @param {SchoolsServiceSupabase} service - Schools service instance
  * @param {AuditService} auditService - Audit service instance
  * @return {Promise<void>}
  */
 export async function deleteSchoolHandler(
   session: UserSession | null,
   schoolId: string,
-  service: SchoolsService = new SchoolsService(),
-  auditService: AuditService = new AuditService()
+  service: SchoolsServiceSupabase = new SchoolsServiceSupabase(),
+  auditService: AuditServiceSupabase = new AuditServiceSupabase()
 ): Promise<void> {
   // Only admins can delete schools
   requireAdmin(session);
@@ -143,12 +143,12 @@ export async function deleteSchoolHandler(
  * Admins see all schools. Users see only their assigned school.
  * 
  * @param {UserSession | null} session - Current user session
- * @param {SchoolsService} service - Schools service instance
+ * @param {SchoolsServiceSupabase} service - Schools service instance
  * @return {Promise<School[]>} List of schools
  */
 export async function listSchoolsHandler(
   session: UserSession | null,
-  service: SchoolsService = new SchoolsService()
+  service: SchoolsServiceSupabase = new SchoolsServiceSupabase()
 ): Promise<School[]> {
   requireAuth(session);
 
@@ -166,12 +166,12 @@ export async function listSchoolsHandler(
  * Get all schools (alias for listSchoolsHandler for backward compatibility)
  * 
  * @param {UserSession | null} session - Current user session
- * @param {SchoolsService} service - Schools service instance
+ * @param {SchoolsServiceSupabase} service - Schools service instance
  * @return {Promise<School[]>} List of schools
  */
 export async function getAllSchools(
   session: UserSession | null,
-  service: SchoolsService = new SchoolsService()
+  service: SchoolsServiceSupabase = new SchoolsServiceSupabase()
 ): Promise<School[]> {
   return listSchoolsHandler(session, service);
 }

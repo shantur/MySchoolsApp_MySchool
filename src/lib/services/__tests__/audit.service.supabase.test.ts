@@ -8,7 +8,7 @@
  * Audit Service (Supabase) Test Suite
  */
 
-import { AuditServiceSupabase, AuditAction } from '../audit.service.supabase';
+import { AuditServiceSupabase, AuditAction } from '../audit.service';
 import type { UserSession } from '../../types';
 import { createServerClient } from '../../supabase/server';
 

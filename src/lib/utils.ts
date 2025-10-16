@@ -23,21 +23,54 @@ export function cn(...inputs: (string | undefined | null | false)[]): string {
 }
 
 /**
+ * Convert a date value (string or Date object) to ISO string format.
+ * Handles the migration period where some dates are strings, others are Date objects.
+ * 
+ * @param date - Date value (string or Date object)
+ * @returns ISO date string
+ */
+export function toISODate(date: string | Date | null | undefined): string {
+  if (!date) return new Date().toISOString();
+  if (typeof date === 'string') return date;
+  return date.toISOString();
+}
+
+/**
  * Format a date string to a human-readable format.
  * 
- * @param dateString - ISO date string
+ * @param dateString - ISO date string or Date object
  * @param options - Formatting options
  * @returns Formatted date string
  */
 export function formatDate(
-  dateString: string,
+  dateString: string | Date,
   options: Intl.DateTimeFormatOptions = {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
   }
 ): string {
-  return new Date(dateString).toLocaleDateString('en-US', options);
+  const date = typeof dateString === 'string' ? new Date(dateString) : dateString;
+  return date.toLocaleDateString('en-US', options);
+}
+
+/**
+ * Format a date value to a time string.
+ * 
+ * @param date - Date value (string or Date object)
+ * @param options - Formatting options
+ * @returns Formatted time string
+ */
+export function formatTime(
+  date: string | Date,
+  options: Intl.DateTimeFormatOptions = {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }
+): string {
+  const dateObj = typeof date === 'string' ? new Date(date) : date;
+  return dateObj.toLocaleTimeString('en-GB', options);
 }
 
 /**

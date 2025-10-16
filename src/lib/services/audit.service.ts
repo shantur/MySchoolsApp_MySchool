@@ -1,12 +1,12 @@
 /**
- * Audit Service
+ * Audit Service (Supabase)
  * 
  * Provides comprehensive audit logging for all school management operations.
  * Tracks who did what, when, and what changed for accountability and compliance.
+ * Migrated from Firebase Firestore to Supabase for Phase 4.
  */
 
-import { getAdminDb } from '../firebase/admin-lazy';
-import { Timestamp } from 'firebase-admin/firestore';
+import { createServerClient } from '../supabase/server';
 import type { UserSession } from '../types';
 
 /**
@@ -28,27 +28,60 @@ export interface AuditEntry {
   entityId: string;
   userId: string;
   userEmail?: string;
-  timestamp: import('firebase-admin/firestore').Timestamp;
+  timestamp: Date;
   changes: Record<string, unknown>;
   metadata?: Record<string, unknown>;
 }
 
 /**
- * Helper function to get Firestore instance
+ * Database row type (snake_case from PostgreSQL)
  */
-const getDb = () => {
-  const db = getAdminDb();
-  if (!db) {
-    throw new Error('Firestore is not available');
-  }
-  return db;
-};
+interface AuditLogRow {
+  id: string;
+  action: string;
+  entity_type: string;
+  entity_id: string;
+  user_id: string;
+  user_email?: string;
+  timestamp: string | Date;
+  changes: unknown;
+  metadata?: unknown;
+}
 
 /**
- * Audit Service class for logging administrative actions
+ * Audit Service class for logging administrative actions with Supabase
  */
-export class AuditService {
-  private readonly collection = 'audit_logs';
+export class AuditServiceSupabase {
+  private readonly table = 'audit_logs';
+
+  /**
+   * Helper to get Supabase client
+   * 
+   * @return {ReturnType<typeof createServerClient>} Supabase client
+   */
+  private getClient() {
+    return createServerClient();
+  }
+
+  /**
+   * Convert database row to AuditEntry type (snake_case → camelCase)
+   * 
+   * @param {AuditLogRow} row - Database row
+   * @return {AuditEntry} Typed AuditEntry object
+   */
+  private rowToAuditEntry(row: AuditLogRow): AuditEntry {
+    return {
+      id: row.id,
+      action: row.action,
+      entityType: row.entity_type as 'school' | 'user' | 'group' | 'notice',
+      entityId: row.entity_id,
+      userId: row.user_id,
+      ...(row.user_email && { userEmail: row.user_email }),
+      timestamp: new Date(row.timestamp) as any,
+      changes: row.changes as Record<string, unknown>,
+      ...(row.metadata ? { metadata: row.metadata as Record<string, unknown> } : {}),
+    };
+  }
 
   /**
    * Log school creation
@@ -123,21 +156,37 @@ export class AuditService {
   /**
    * Create an audit log entry
    * 
-   * @param {Partial<AuditEntry>} entry - Audit entry data
+   * @param {Omit<AuditEntry, 'id' | 'timestamp'>} entry - Audit entry data
    * @return {Promise<string>} Created audit log ID
    */
   private async createAuditLog(
     entry: Omit<AuditEntry, 'id' | 'timestamp'>
   ): Promise<string> {
-    const db = getDb();
+    const supabase = this.getClient();
 
-    const auditEntry = {
-      ...entry,
-      timestamp: Timestamp.now(),
+    // Prepare audit entry (camelCase → snake_case)
+    const auditData = {
+      action: entry.action,
+      entity_type: entry.entityType,
+      entity_id: entry.entityId,
+      user_id: entry.userId,
+      ...(entry.userEmail && { user_email: entry.userEmail }),
+      changes: entry.changes,
+      ...(entry.metadata && { metadata: entry.metadata }),
+      // timestamp will be set by database default (NOW())
     };
 
-    const docRef = await db.collection(this.collection).add(auditEntry);
-    return docRef.id;
+    const { data, error } = await supabase
+      .from(this.table)
+      .insert(auditData)
+      .select('id')
+      .single();
+
+    if (error) {
+      throw new Error(`Failed to create audit log: ${error.message}`);
+    }
+
+    return (data as { id: string }).id;
   }
 
   /**
@@ -153,20 +202,21 @@ export class AuditService {
     entityId: string,
     limit: number = 100
   ): Promise<AuditEntry[]> {
-    const db = getDb();
+    const supabase = this.getClient();
 
-    const snapshot = await db
-      .collection(this.collection)
-      .where('entityType', '==', entityType)
-      .where('entityId', '==', entityId)
-      .orderBy('timestamp', 'desc')
-      .limit(limit)
-      .get();
+    const { data, error } = await supabase
+      .from(this.table)
+      .select('*')
+      .eq('entity_type', entityType)
+      .eq('entity_id', entityId)
+      .order('timestamp', { ascending: false })
+      .limit(limit);
 
-    return snapshot.docs.map((doc: import('firebase-admin/firestore').QueryDocumentSnapshot) => ({
-      id: doc.id,
-      ...doc.data(),
-    })) as AuditEntry[];
+    if (error) {
+      throw new Error(`Failed to get audit logs: ${error.message}`);
+    }
+
+    return (data as AuditLogRow[]).map(row => this.rowToAuditEntry(row));
   }
 
   /**
@@ -180,18 +230,22 @@ export class AuditService {
     userId: string,
     limit: number = 100
   ): Promise<AuditEntry[]> {
-    const db = getDb();
+    const supabase = this.getClient();
 
-    const snapshot = await db
-      .collection(this.collection)
-      .where('userId', '==', userId)
-      .orderBy('timestamp', 'desc')
-      .limit(limit)
-      .get();
+    const { data, error } = await supabase
+      .from(this.table)
+      .select('*')
+      .eq('user_id', userId)
+      .order('timestamp', { ascending: false })
+      .limit(limit);
 
-    return snapshot.docs.map((doc: import('firebase-admin/firestore').QueryDocumentSnapshot) => ({
-      id: doc.id,
-      ...doc.data(),
-    })) as AuditEntry[];
+    if (error) {
+      throw new Error(`Failed to get user audit logs: ${error.message}`);
+    }
+
+    return (data as AuditLogRow[]).map(row => this.rowToAuditEntry(row));
   }
 }
+
+// Compatibility export for Firebase-to-Supabase migration
+export const AuditService = AuditServiceSupabase;

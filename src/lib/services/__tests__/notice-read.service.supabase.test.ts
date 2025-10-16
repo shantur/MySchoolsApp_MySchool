@@ -16,7 +16,7 @@ import {
   getUserReadNotices,
   getBulkReadStatus,
   deleteNoticeReads,
-} from '../notice-read.service.supabase';
+} from '../notice-read.service';
 import { createServerClient } from '../../supabase/server';
 
 // Mock Supabase server client

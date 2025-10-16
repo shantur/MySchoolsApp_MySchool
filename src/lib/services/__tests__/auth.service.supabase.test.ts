@@ -6,7 +6,7 @@
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { authenticateUser, createUserAccount, setUserRole } from '../auth.service.supabase';
+import { authenticateUser, createUserAccount, setUserRole } from '../auth.service';
 import { supabaseServer } from '../../supabase/server';
 
 // Mock Supabase server client

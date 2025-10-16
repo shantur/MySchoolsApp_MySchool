@@ -7,11 +7,5 @@ require('jest-fetch-mock').enableMocks()
 // Mock next/server for all tests
 jest.mock('next/server', () => require('./src/__mocks__/next-server'));
 
-// Mock Firebase Client SDK for all tests
-jest.mock('@/lib/firebase/client', () => ({
-  auth: {
-    signInWithEmailAndPassword: jest.fn(),
-  },
-  db: {},
-  storage: {},
-}));
+// Firebase Client SDK has been removed during migration to Supabase
+// No mock needed as it's no longer used in the codebase

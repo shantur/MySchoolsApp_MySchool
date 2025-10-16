@@ -7,6 +7,7 @@
 
 import { getUserSession } from '@/lib/auth/session';
 import { getNoticeById } from '@/lib/handlers/notices-handler';
+import { toISODate, formatDate, formatTime } from '@/lib/utils';
 import Link from 'next/link';
 import AttachmentDownloadScript from './AttachmentDownloadScript';
 import MarkAsReadScript from './MarkAsReadScript';
@@ -69,7 +70,7 @@ export default async function NoticeDetailPage({
   }
   
   // Fetch notice
-  const notice = await getNoticeById(schoolId, noticeId, session);
+  const notice = await getNoticeById(session, noticeId, schoolId);
   
   // Check if user has read this notice
   const { hasUserReadNotice } = await import('@/lib/services/notice-read.service');
@@ -146,29 +147,17 @@ export default async function NoticeDetailPage({
                 </div>
               )}
               <div
-                data-notice-publication-date={
-                  notice.publicationDate.toDate().toISOString()
-                }
-                data-notice-publication-time={
-                  notice.publicationDate.toDate().toLocaleTimeString('en-GB', {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                    hour12: false,
-                  })
-                }
+                data-notice-publication-date={toISODate(notice.publicationDate)}
+                data-notice-publication-time={formatTime(notice.publicationDate)}
               >
                 Published on{' '}
-                {notice.publicationDate.toDate().toLocaleDateString('en-US', {
+                {formatDate(notice.publicationDate, {
                   year: 'numeric',
                   month: 'long',
                   day: 'numeric',
                 })}{' '}
                 at{' '}
-                {notice.publicationDate.toDate().toLocaleTimeString('en-GB', {
-                  hour: '2-digit',
-                  minute: '2-digit',
-                  hour12: false,
-                })}
+                {formatTime(notice.publicationDate)}
               </div>
             </div>
             

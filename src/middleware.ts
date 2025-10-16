@@ -35,16 +35,36 @@ function getSessionSecret(): string | null {
 }
 
 /**
- * Validate session token from middleware context
+ * Base64 URL decode helper for JWT
+ * Converts base64url to Uint8Array
+ */
+function base64UrlDecode(base64Url: string): Uint8Array {
+  // Convert base64url to base64
+  const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+  // Add padding if needed
+  const padded = base64 + '='.repeat((4 - (base64.length % 4)) % 4);
+  // Decode base64 to binary string
+  const binary = atob(padded);
+  // Convert binary string to Uint8Array
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return bytes;
+}
+
+/**
+ * Validate session token using Web Crypto API (Edge Runtime compatible)
  * 
- * For now, we'll use a simple base64 decoding approach that works in Edge Runtime.
- * In production with Firebase, this should use Firebase session cookies.
+ * This implementation uses Web Crypto API instead of the jsonwebtoken library
+ * because middleware runs in Edge Runtime where Node.js libraries are not available.
  * 
  * @param token - JWT token string
- * @returns UserSession or null if invalid
+ * @returns Promise<UserSession | null> - User session or null if invalid
  */
-function validateSessionToken(token: string): UserSession | null {
+async function validateSessionToken(token: string): Promise<UserSession | null> {
   if (!token || token.trim() === '') {
+    console.log('[Middleware] Empty token provided');
     return null;
   }
   
@@ -55,24 +75,48 @@ function validateSessionToken(token: string): UserSession | null {
     return null;
   }
   
-  console.log(`[Middleware] Attempting to verify token (simple decode for testing)`);
+  console.log(`[Middleware] Attempting to verify JWT token with Web Crypto API`);
   
   try {
-    // Simple base64 decode for testing (NOT SECURE for production)
-    // In production, this should use Firebase Admin SDK verifySessionCookie
+    // Split JWT into parts
     const parts = token.split('.');
     if (parts.length !== 3) {
-      console.log('[Middleware] Invalid JWT format');
+      console.log('[Middleware] Invalid JWT format - expected 3 parts, got', parts.length);
       return null;
     }
     
-    // Decode the payload (middle part) - use Buffer instead of atob for Edge Runtime compatibility
-    const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString());
-    console.log(`[Middleware] Token decoded successfully, payload:`, payload);
+    // Verify signature using Web Crypto API
+    const encoder = new TextEncoder();
+    const data = encoder.encode(`${parts[0]}.${parts[1]}`);
+    const signature = base64UrlDecode(parts[2]);
+    
+    // Import secret key for HMAC verification
+    const key = await crypto.subtle.importKey(
+      'raw',
+      encoder.encode(sessionSecret),
+      { name: 'HMAC', hash: 'SHA-256' },
+      false,
+      ['verify']
+    );
+    
+    // Verify the signature (cast signature to BufferSource for TypeScript compatibility)
+    const valid = await crypto.subtle.verify('HMAC', key, signature as BufferSource, data);
+    
+    if (!valid) {
+      console.log('[Middleware] JWT signature verification failed');
+      return null;
+    }
+    
+    console.log('[Middleware] JWT signature verified successfully');
+    
+    // Decode the payload (middle part)
+    const payloadJson = new TextDecoder().decode(base64UrlDecode(parts[1]));
+    const payload = JSON.parse(payloadJson);
+    console.log(`[Middleware] Token payload decoded:`, payload);
     
     // Check expiration
     if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) {
-      console.log('[Middleware] Token expired');
+      console.log('[Middleware] Token expired at', new Date(payload.exp * 1000).toISOString());
       return null;
     }
     
@@ -109,19 +153,21 @@ function validateSessionToken(token: string): UserSession | null {
  * Get user session from request cookies
  * 
  * @param request - NextRequest object
- * @returns UserSession or null
+ * @returns Promise<UserSession | null>
  */
-function getSession(request: NextRequest): UserSession | null {
+async function getSession(request: NextRequest): Promise<UserSession | null> {
   const sessionCookie = request.cookies.get(SESSION_CONFIG.cookieName);
   
   console.log(`[Middleware] Cookie check for ${SESSION_CONFIG.cookieName}:`, sessionCookie ? 'Found' : 'Not found');
+  console.log(`[Middleware] All cookies:`, Array.from(request.cookies.getAll()).map(c => c.name));
   
   if (!sessionCookie) {
+    console.log('[Middleware] No session cookie found');
     return null;
   }
   
-  console.log(`[Middleware] Cookie value: ${sessionCookie.value.substring(0, 20)}...`);
-  const session = validateSessionToken(sessionCookie.value);
+  console.log(`[Middleware] Cookie value (first 20 chars): ${sessionCookie.value.substring(0, 20)}...`);
+  const session = await validateSessionToken(sessionCookie.value);
   console.log(`[Middleware] Session validation result:`, session ? 'Valid' : 'Invalid');
   return session;
 }
@@ -231,13 +277,14 @@ function hasSchoolAccess(session: UserSession, schoolId: string): boolean {
 /**
  * Main middleware function
  */
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   
   // Debug logging
+  console.log(`[Middleware] ========================================`);
   console.log(`[Middleware] Processing request to: ${pathname}`);
   console.log(`[Middleware] Method: ${request.method}`);
-  console.log(`[Middleware] Headers:`, Object.fromEntries(request.headers.entries()));
+  console.log(`[Middleware] URL: ${request.url}`);
   
   // Public routes - allow without authentication
   const publicRoutes = ['/', '/login'];
@@ -246,23 +293,29 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
   
-  // Get user session
-  const session = getSession(request);
+  // Get user session (now async)
+  const session = await getSession(request);
   console.log(`[Middleware] Session retrieved:`, session ? 'Authenticated' : 'Not authenticated');
+  if (session) {
+    console.log(`[Middleware] Session details: role=${session.role}, uid=${session.uid}`);
+  }
   console.log(`[Middleware] Continuing with authorization checks...`);
   
   // Admin routes - require admin role
   console.log(`[Middleware] Checking if ${pathname} matches /admin/**`);
   if (matchesPattern(pathname, '/admin/**')) {
     if (!session) {
+      console.log(`[Middleware] No session found, redirecting to login`);
       return redirectToLogin(request);
     }
     
     if (session.role !== 'admin') {
       // User is authenticated but not admin - redirect to login
+      console.log(`[Middleware] User role ${session.role} is not admin, redirecting to login`);
       return redirectToLogin(request);
     }
     
+    console.log(`[Middleware] Admin access granted for ${pathname}`);
     return NextResponse.next();
   }
   

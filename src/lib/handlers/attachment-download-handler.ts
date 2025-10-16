@@ -8,7 +8,6 @@
 import { getUserSession } from '@/lib/auth/session';
 import { requireAuth, checkSchoolAccess } from '@/lib/auth/authorization';
 import { AttachmentsService } from '@/lib/services/attachments.service';
-import { getAdminStorage } from '@/lib/firebase/admin-lazy';
 
 /**
  * Input parameters for attachment download
@@ -71,27 +70,18 @@ export async function handleAttachmentDownload(
     // Check school access authorization
     checkSchoolAccess(session, input.schoolId);
 
-    // Get Firebase Storage instance
-    const storage = getAdminStorage();
-    if (!storage) {
-      return {
-        success: false,
-        error: {
-          message: 'Internal server error',
-          code: 'STORAGE_UNAVAILABLE',
-        },
-      };
-    }
-
-    // Check if attachment exists in storage
-    const bucket = storage.bucket();
-    const filePath = `attachments/${input.schoolId}/${input.noticeId}/${input.attachmentId}`;
-    const file = bucket.file(filePath);
+    // Use Supabase Storage via AttachmentsService
+    const attachmentsService = new AttachmentsService();
     
-    const existsResult = await file.exists();
-    // Handle both array and boolean return types
-    const exists = Array.isArray(existsResult) ? existsResult[0] : existsResult;
-    if (!exists) {
+    // Get signed download URL from Supabase Storage
+    // The service handles existence check and generates signed URL
+    const signedUrl = await attachmentsService.getAttachmentDownloadUrl(
+      input.attachmentId,
+      input.schoolId,
+      input.noticeId
+    );
+    
+    if (!signedUrl) {
       return {
         success: false,
         error: {
@@ -100,14 +90,6 @@ export async function handleAttachmentDownload(
         },
       };
     }
-
-    // Generate signed download URL
-    const attachmentsService = new AttachmentsService();
-    const signedUrl = await attachmentsService.getAttachmentDownloadUrl(
-      input.attachmentId,
-      input.schoolId,
-      input.noticeId
-    );
 
     return {
       success: true,

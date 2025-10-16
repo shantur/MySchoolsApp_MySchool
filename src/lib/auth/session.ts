@@ -1,9 +1,11 @@
 /**
- * Session Management Module
+ * Session Management Module (Supabase)
  * 
- * Handles JWT-based session creation and validation for MySchool
- * authentication. Sessions are stored in HTTP-only cookies with
- * a 24-hour expiration.
+ * Handles JWT-based session creation and validation for Supabase authentication.
+ * Sessions are stored in HTTP-only cookies with a 24-hour expiration.
+ * 
+ * Note: This module maintains the same JWT-based session approach as Firebase
+ * but works with Supabase Auth user IDs and metadata.
  */
 
 import { UserSession } from '@/lib/types';
@@ -117,7 +119,7 @@ export function validateSession(token: string): UserSession | null {
 /**
  * Cookie configuration for session management
  * 
- * @param {string} domain - Domain for the cookie
+ * @param {string} domain - Domain for the cookie (optional, defaults to undefined for browser default)
  * @return {object} Cookie configuration object
  */
 export function getCookieConfig(domain?: string) {
@@ -129,7 +131,9 @@ export function getCookieConfig(domain?: string) {
     path: SESSION_CONFIG.path,
     secure: SESSION_CONFIG.secure,
     httpOnly: true,
-    domain: domain || 'localhost',
+    // Don't set domain explicitly - let the browser handle it
+    // This improves compatibility across different environments (localhost, production, Edge Runtime)
+    ...(domain && { domain }),
   };
 }
 
@@ -143,7 +147,7 @@ export async function getUserSession(): Promise<UserSession | null> {
   const { cookies } = await import('next/headers');
   
   try {
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     const sessionCookie = cookieStore.get(SESSION_CONFIG.cookieName);
     
     if (!sessionCookie) {

@@ -9,6 +9,7 @@
 import { getUserSession } from '@/lib/auth/session';
 import { getUserById } from '@/lib/handlers/users-handler';
 import { getGroupsBySchool } from '@/lib/handlers/groups-handler';
+import { formatDate } from '@/lib/utils';
 import React from 'react';
 
 // Temporary basic components to avoid client-side import issues
@@ -263,11 +264,11 @@ export default async function ProfilePage({
                       id="account-created"
                       className="body-large text-on-surface"
                     >
-                      {user.createdAt?.toDate().toLocaleDateString('en-US', {
+                      {user.createdAt ? formatDate(user.createdAt, {
                         year: 'numeric',
                         month: 'long',
                         day: 'numeric',
-                      })}
+                      }) : 'N/A'}
                     </p>
                   </div>
                 </div>
@@ -311,11 +312,11 @@ export default async function ProfilePage({
                       id="member-since"
                       className="body-large text-on-surface"
                     >
-                      {user.createdAt?.toDate().toLocaleDateString('en-US', {
+                      {user.createdAt ? formatDate(user.createdAt, {
                         year: 'numeric',
                         month: 'long',
                         day: 'numeric',
-                      })}
+                      }) : 'N/A'}
                     </p>
                   </div>
                 </div>
