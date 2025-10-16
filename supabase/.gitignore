@@ -1,0 +1,14 @@
+# Supabase
+.branches
+.temp
+
+# dotenvx
+.env.keys
+.env.local
+.env.*.local
+
+# Local development credentials (regenerated on each supabase start)
+LOCAL_CREDENTIALS.md
+
+# Docker volumes and data
+.docker/
