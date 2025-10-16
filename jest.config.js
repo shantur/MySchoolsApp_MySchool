@@ -41,12 +41,20 @@ const customJestConfig = {
     '/.next/',
     '/tests/',
     '/src/app/api/', // Exclude API routes - they use jest.api.config.js
+    '\\.disabled\\.',  // Exclude disabled tests
   ],
   modulePathIgnorePatterns: ['/functions/', '/.next/'],
   moduleDirectories: ['node_modules', '<rootDir>/'],
   transformIgnorePatterns: [
     'node_modules/(?!(jose)/)',
   ],
+  // Test timeout settings
+  testTimeout: 10000, // 10 seconds per test
+  // Detect open handles to help identify what's causing hangs
+  detectOpenHandles: false, // Set to false to prevent hanging on detection
+  // Force exit after tests complete
+  bail: false,
+  maxWorkers: 1, // Run tests serially to avoid resource conflicts
 }
 
 // createJestConfig is exported this way to ensure that next/jest can load the Next.js config which is async

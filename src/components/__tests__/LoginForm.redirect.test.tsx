@@ -31,6 +31,11 @@ describe('LoginForm Redirect Logic', () => {
       prefetch: jest.fn(),
     } as any);
     
+    // Clear the globally mocked location.assign
+    if (window.location.assign && typeof (window.location.assign as any).mockClear === 'function') {
+      (window.location.assign as any).mockClear();
+    }
+    
     // Mock successful login response for admin
     (global.fetch as jest.Mock).mockResolvedValue({
       ok: true,
@@ -64,7 +69,7 @@ describe('LoginForm Redirect Logic', () => {
     
     // Wait for the redirect to happen
     await waitFor(() => {
-      expect(mockPush).toHaveBeenCalledWith('/admin/dashboard');
+      expect(window.location.assign).toHaveBeenCalledWith('/admin/groups');
     });
   });
 
@@ -100,7 +105,7 @@ describe('LoginForm Redirect Logic', () => {
     
     // Wait for the redirect to happen
     await waitFor(() => {
-      expect(mockPush).toHaveBeenCalledWith('/test-school-123/notices');
+      expect(window.location.assign).toHaveBeenCalledWith('/test-school-123/notices');
     });
   });
 
@@ -122,10 +127,10 @@ describe('LoginForm Redirect Logic', () => {
     
     // Wait for the redirect to happen
     await waitFor(() => {
-      expect(mockPush).toHaveBeenCalledWith(redirectUrl);
+      expect(window.location.assign).toHaveBeenCalledWith(redirectUrl);
     });
     
     // Verify it was called with redirectUrl, not admin dashboard
-    expect(mockPush).not.toHaveBeenCalledWith('/admin/dashboard');
+    expect(window.location.assign).not.toHaveBeenCalledWith('/admin/groups');
   });
 });

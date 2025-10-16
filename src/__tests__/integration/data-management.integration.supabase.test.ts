@@ -5,10 +5,10 @@
  * These tests verify data operations using Supabase local development environment
  */
 
-import { NoticesServiceSupabase } from '@/lib/services/notices.service.supabase';
-import { GroupsServiceSupabase } from '@/lib/services/groups.service.supabase';
-import { SchoolsServiceSupabase } from '@/lib/services/schools.service.supabase';
-import { AuditServiceSupabase } from '@/lib/services/audit.service.supabase';
+import { NoticesServiceSupabase } from '@/lib/services/notices.service';
+import { GroupsServiceSupabase } from '@/lib/services/groups.service';
+import { SchoolsServiceSupabase } from '@/lib/services/schools.service';
+import { AuditServiceSupabase } from '@/lib/services/audit.service';
 
 // Set environment variables for testing
 process.env.NODE_ENV = 'development';

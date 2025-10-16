@@ -30,6 +30,11 @@ describe('LoginForm', () => {
     mockRouter = { push: mockPush };
     (useRouter as jest.Mock).mockReturnValue(mockRouter);
     (global.fetch as jest.Mock).mockClear();
+    
+    // Clear the globally mocked location.assign
+    if (window.location.assign && typeof (window.location.assign as any).mockClear === 'function') {
+      (window.location.assign as any).mockClear();
+    }
   });
 
   afterEach(() => {
@@ -178,6 +183,7 @@ describe('LoginForm', () => {
           headers: {
             'Content-Type': 'application/json',
           },
+          credentials: 'same-origin',
           body: JSON.stringify({
             email: 'test@example.com',
             password: 'password123',
@@ -205,7 +211,7 @@ describe('LoginForm', () => {
       await user.click(screen.getByRole('button', { name: /login/i }));
       
       await waitFor(() => {
-        expect(mockPush).toHaveBeenCalledWith('/school123/notices');
+        expect(window.location.assign).toHaveBeenCalledWith('/school123/notices');
       });
     });
 
@@ -228,7 +234,7 @@ describe('LoginForm', () => {
       await user.click(screen.getByRole('button', { name: /login/i }));
       
       await waitFor(() => {
-        expect(mockPush).toHaveBeenCalledWith('/admin/dashboard');
+        expect(window.location.assign).toHaveBeenCalledWith('/admin/groups');
       });
     });
 

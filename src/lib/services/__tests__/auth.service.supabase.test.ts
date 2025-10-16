@@ -195,6 +195,7 @@ describe('Auth Service (Supabase)', () => {
 
       expect(supabaseServer.auth.admin.createUser).toHaveBeenCalledWith({
         email: 'newuser@example.com',
+        email_confirm: true,
         password: 'SecurePass123!',
         user_metadata: {
           display_name: 'New User',

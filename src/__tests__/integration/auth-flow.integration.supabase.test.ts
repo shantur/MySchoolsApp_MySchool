@@ -98,8 +98,8 @@ jest.mock('@/lib/supabase/server', () => ({
 jest.mock('@supabase/supabase-js', () => ({}));
 
 // Import after mocking
-import { authenticateUser, createUserAccount } from '@/lib/services/auth.service.supabase';
-import { createSession, validateSession } from '@/lib/auth/session.supabase';
+import { authenticateUser, createUserAccount } from '@/lib/services/auth.service';
+import { createSession, validateSession } from '@/lib/auth/session';
 import { handleLogin } from '@/lib/auth/login-handler';
 import { handleCreateUser } from '@/lib/auth/create-user-handler';
 

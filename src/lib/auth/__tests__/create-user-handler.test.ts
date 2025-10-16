@@ -6,13 +6,6 @@
 import { handleCreateUser } from '../create-user-handler';
 import { createUserAccount } from '@/lib/services/auth.service';
 
-// Mock Firebase Admin
-jest.mock('@/lib/firebase/admin', () => ({
-  adminAuth: {},
-  adminDb: {},
-  adminStorage: {},
-}));
-
 // Mock dependencies
 jest.mock('@/lib/services/auth.service');
 
