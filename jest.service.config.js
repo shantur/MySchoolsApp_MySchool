@@ -25,10 +25,10 @@ const customJestConfig = {
     '!src/**/__tests__/**',
   ],
   testMatch: [
-    'src/lib/services/**/__tests__/**/*.(test|spec).(ts|tsx|js)',
-    'src/lib/services/**/*.(test|spec).(ts|tsx|js)',
-    'src/lib/auth/**/__tests__/**/*.(test|spec).(ts|tsx|js)',
-    'src/lib/auth/**/*.(test|spec).(ts|tsx|js)',
+    '<rootDir>/src/lib/services/**/__tests__/**/*.(test|spec).(ts|tsx|js)',
+    '<rootDir>/src/lib/services/**/*.(test|spec).(ts|tsx|js)',
+    '<rootDir>/src/lib/auth/**/__tests__/**/*.(test|spec).(ts|tsx|js)',
+    '<rootDir>/src/lib/auth/**/*.(test|spec).(ts|tsx|js)',
   ],
   testPathIgnorePatterns: [
     '/node_modules/',
