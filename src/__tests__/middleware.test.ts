@@ -56,18 +56,18 @@ describe('Middleware Route Protection', () => {
   }
 
   describe('Public Routes', () => {
-    it('should allow access to root path without authentication', () => {
+    it('should allow access to root path without authentication', async () => {
       const request = createRequest('/');
-      const response = middleware(request);
+      const response = await middleware(request);
       
       // Should continue to next handler
       expect(response).toBeInstanceOf(NextResponse);
       expect(response.status).not.toBe(307); // Not a redirect
     });
 
-    it('should allow access to login page without authentication', () => {
+    it('should allow access to login page without authentication', async () => {
       const request = createRequest('/login');
-      const response = middleware(request);
+      const response = await middleware(request);
       
       expect(response).toBeInstanceOf(NextResponse);
       expect(response.status).not.toBe(307);
@@ -75,16 +75,16 @@ describe('Middleware Route Protection', () => {
   });
 
   describe('Admin Page Routes (/admin/**)', () => {
-    it('should redirect unauthenticated users to login', () => {
+    it('should redirect unauthenticated users to login', async () => {
       const request = createRequest('/admin/dashboard');
-      const response = middleware(request);
+      const response = await middleware(request);
       
       expect(response.status).toBe(307); // Redirect
       expect(response.headers.get('location')).toContain('/login');
       expect(response.headers.get('location')).toContain('redirect=');
     });
 
-    it('should allow admin users to access admin pages', () => {
+    it('should allow admin users to access admin pages', async () => {
       const token = createSessionToken({
         uid: 'admin-123',
         email: 'admin@example.com',
@@ -93,14 +93,14 @@ describe('Middleware Route Protection', () => {
       });
       
       const request = createRequest('/admin/dashboard', token);
-      const response = middleware(request);
+      const response = await middleware(request);
       
       expect(response.status).not.toBe(307);
       expect(response.status).not.toBe(401);
       expect(response.status).not.toBe(403);
     });
 
-    it('should redirect non-admin users to login', () => {
+    it('should redirect non-admin users to login', async () => {
       const token = createSessionToken({
         uid: 'user-123',
         email: 'user@example.com',
@@ -109,7 +109,7 @@ describe('Middleware Route Protection', () => {
       });
       
       const request = createRequest('/admin/users', token);
-      const response = middleware(request);
+      const response = await middleware(request);
       
       // Should redirect to login
       expect(response.status).toBe(307);
@@ -117,9 +117,9 @@ describe('Middleware Route Protection', () => {
       expect(response.headers.get('location')).toContain('redirect=');
     });
 
-    it('should protect nested admin routes', () => {
+    it('should protect nested admin routes', async () => {
       const request = createRequest('/admin/users/create');
-      const response = middleware(request);
+      const response = await middleware(request);
       
       expect(response.status).toBe(307);
       expect(response.headers.get('location')).toContain('/login');
@@ -129,7 +129,7 @@ describe('Middleware Route Protection', () => {
   describe('Admin API Routes (/api/admin/**)', () => {
     it('should return 401 JSON error for unauthenticated requests', async () => {
       const request = createRequest('/api/admin/users');
-      const response = middleware(request);
+      const response = await middleware(request);
       
       expect(response.status).toBe(401);
       
@@ -149,7 +149,7 @@ describe('Middleware Route Protection', () => {
       });
       
       const request = createRequest('/api/admin/notices', token);
-      const response = middleware(request);
+      const response = await middleware(request);
       
       expect(response.status).toBe(403);
       
@@ -160,7 +160,7 @@ describe('Middleware Route Protection', () => {
       });
     });
 
-    it('should allow admin users to access admin API routes', () => {
+    it('should allow admin users to access admin API routes', async () => {
       const token = createSessionToken({
         uid: 'admin-123',
         email: 'admin@example.com',
@@ -169,7 +169,7 @@ describe('Middleware Route Protection', () => {
       });
       
       const request = createRequest('/api/admin/users', token);
-      const response = middleware(request);
+      const response = await middleware(request);
       
       expect(response.status).not.toBe(401);
       expect(response.status).not.toBe(403);
@@ -179,7 +179,7 @@ describe('Middleware Route Protection', () => {
   describe('Attachment Download API (/api/attachments/download/[id])', () => {
     it('should return 401 for unauthenticated requests', async () => {
       const request = createRequest('/api/attachments/download/attach123');
-      const response = middleware(request);
+      const response = await middleware(request);
       
       expect(response.status).toBe(401);
       
@@ -199,7 +199,7 @@ describe('Middleware Route Protection', () => {
         '/api/attachments/download/attach123?noticeId=notice456',
         token
       );
-      const response = middleware(request);
+      const response = await middleware(request);
       
       expect(response.status).toBe(400);
       
@@ -219,7 +219,7 @@ describe('Middleware Route Protection', () => {
         '/api/attachments/download/attach123?schoolId=school-a',
         token
       );
-      const response = middleware(request);
+      const response = await middleware(request);
       
       expect(response.status).toBe(400);
       
@@ -239,7 +239,7 @@ describe('Middleware Route Protection', () => {
         '/api/attachments/download/attach123?schoolId=school-b&noticeId=notice456',
         token
       );
-      const response = middleware(request);
+      const response = await middleware(request);
       
       expect(response.status).toBe(403);
       
@@ -247,7 +247,7 @@ describe('Middleware Route Protection', () => {
       expect(body.error).toContain('Access denied');
     });
 
-    it('should allow user to download attachments from their own school', () => {
+    it('should allow user to download attachments from their own school', async () => {
       const token = createSessionToken({
         uid: 'user-123',
         email: 'user@example.com',
@@ -259,14 +259,14 @@ describe('Middleware Route Protection', () => {
         '/api/attachments/download/attach123?schoolId=school-a&noticeId=notice456',
         token
       );
-      const response = middleware(request);
+      const response = await middleware(request);
       
       expect(response.status).not.toBe(401);
       expect(response.status).not.toBe(403);
       expect(response.status).not.toBe(400);
     });
 
-    it('should allow admin to download attachments from any school', () => {
+    it('should allow admin to download attachments from any school', async () => {
       const token = createSessionToken({
         uid: 'admin-123',
         email: 'admin@example.com',
@@ -278,7 +278,7 @@ describe('Middleware Route Protection', () => {
         '/api/attachments/download/attach123?schoolId=school-b&noticeId=notice456',
         token
       );
-      const response = middleware(request);
+      const response = await middleware(request);
       
       expect(response.status).not.toBe(401);
       expect(response.status).not.toBe(403);
@@ -287,16 +287,16 @@ describe('Middleware Route Protection', () => {
   });
 
   describe('School-Specific Routes (/[schoolId]/notices/**)', () => {
-    it('should redirect unauthenticated users to login', () => {
+    it('should redirect unauthenticated users to login', async () => {
       const request = createRequest('/school-a/notices');
-      const response = middleware(request);
+      const response = await middleware(request);
       
       expect(response.status).toBe(307);
       expect(response.headers.get('location')).toContain('/login');
       expect(response.headers.get('location')).toContain('redirect=');
     });
 
-    it('should allow users to access their own school notices', () => {
+    it('should allow users to access their own school notices', async () => {
       const token = createSessionToken({
         uid: 'user-123',
         email: 'user@example.com',
@@ -305,14 +305,14 @@ describe('Middleware Route Protection', () => {
       });
       
       const request = createRequest('/school-a/notices', token);
-      const response = middleware(request);
+      const response = await middleware(request);
       
       expect(response.status).not.toBe(307);
       expect(response.status).not.toBe(401);
       expect(response.status).not.toBe(403);
     });
 
-    it('should redirect users accessing other schools to login', () => {
+    it('should redirect users accessing other schools to login', async () => {
       const token = createSessionToken({
         uid: 'user-123',
         email: 'user@example.com',
@@ -321,7 +321,7 @@ describe('Middleware Route Protection', () => {
       });
       
       const request = createRequest('/school-b/notices', token);
-      const response = middleware(request);
+      const response = await middleware(request);
       
       // Should redirect to login
       expect(response.status).toBe(307);
@@ -329,7 +329,7 @@ describe('Middleware Route Protection', () => {
       expect(response.headers.get('location')).toContain('redirect=');
     });
 
-    it('should allow admin to access any school notices', () => {
+    it('should allow admin to access any school notices', async () => {
       const token = createSessionToken({
         uid: 'admin-123',
         email: 'admin@example.com',
@@ -338,16 +338,16 @@ describe('Middleware Route Protection', () => {
       });
       
       const request = createRequest('/school-b/notices', token);
-      const response = middleware(request);
+      const response = await middleware(request);
       
       expect(response.status).not.toBe(307);
       expect(response.status).not.toBe(401);
       expect(response.status).not.toBe(403);
     });
 
-    it('should protect nested notice routes', () => {
+    it('should protect nested notice routes', async () => {
       const request = createRequest('/school-a/notices/notice-123');
-      const response = middleware(request);
+      const response = await middleware(request);
       
       expect(response.status).toBe(307);
       expect(response.headers.get('location')).toContain('/login');
@@ -355,15 +355,15 @@ describe('Middleware Route Protection', () => {
   });
 
   describe('Profile Routes (/[schoolId]/profile)', () => {
-    it('should redirect unauthenticated users to login', () => {
+    it('should redirect unauthenticated users to login', async () => {
       const request = createRequest('/school-a/profile');
-      const response = middleware(request);
+      const response = await middleware(request);
       
       expect(response.status).toBe(307);
       expect(response.headers.get('location')).toContain('/login');
     });
 
-    it('should allow users to access their own school profile', () => {
+    it('should allow users to access their own school profile', async () => {
       const token = createSessionToken({
         uid: 'user-123',
         email: 'user@example.com',
@@ -372,14 +372,14 @@ describe('Middleware Route Protection', () => {
       });
       
       const request = createRequest('/school-a/profile', token);
-      const response = middleware(request);
+      const response = await middleware(request);
       
       expect(response.status).not.toBe(307);
       expect(response.status).not.toBe(401);
       expect(response.status).not.toBe(403);
     });
 
-    it('should redirect users accessing other school profiles to login', () => {
+    it('should redirect users accessing other school profiles to login', async () => {
       const token = createSessionToken({
         uid: 'user-123',
         email: 'user@example.com',
@@ -388,7 +388,7 @@ describe('Middleware Route Protection', () => {
       });
       
       const request = createRequest('/school-b/profile', token);
-      const response = middleware(request);
+      const response = await middleware(request);
       
       // Should redirect to login
       expect(response.status).toBe(307);
@@ -396,7 +396,7 @@ describe('Middleware Route Protection', () => {
       expect(response.headers.get('location')).toContain('redirect=');
     });
 
-    it('should allow admin to access any school profile', () => {
+    it('should allow admin to access any school profile', async () => {
       const token = createSessionToken({
         uid: 'admin-123',
         email: 'admin@example.com',
@@ -405,7 +405,7 @@ describe('Middleware Route Protection', () => {
       });
       
       const request = createRequest('/school-b/profile', token);
-      const response = middleware(request);
+      const response = await middleware(request);
       
       expect(response.status).not.toBe(307);
       expect(response.status).not.toBe(401);
@@ -414,7 +414,7 @@ describe('Middleware Route Protection', () => {
   });
 
   describe('Session Validation', () => {
-    it('should reject expired tokens', () => {
+    it('should reject expired tokens', async () => {
       // Create an expired token (expires immediately)
       const expiredToken = jwt.sign(
         {
@@ -432,14 +432,14 @@ describe('Middleware Route Protection', () => {
       
       // Wait a bit to ensure expiration
       const request = createRequest('/admin/dashboard', expiredToken);
-      const response = middleware(request);
+      const response = await middleware(request);
       
       // Should redirect to login (unauthenticated)
       expect(response.status).toBe(307);
       expect(response.headers.get('location')).toContain('/login');
     });
 
-    it('should reject tokens with invalid signature', () => {
+    it('should reject tokens with invalid signature', async () => {
       const invalidToken = jwt.sign(
         {
           uid: 'user-123',
@@ -455,13 +455,13 @@ describe('Middleware Route Protection', () => {
       );
       
       const request = createRequest('/admin/dashboard', invalidToken);
-      const response = middleware(request);
+      const response = await middleware(request);
       
       expect(response.status).toBe(307);
       expect(response.headers.get('location')).toContain('/login');
     });
 
-    it('should reject tokens with missing required fields', () => {
+    it('should reject tokens with missing required fields', async () => {
       const incompleteToken = jwt.sign(
         {
           uid: 'user-123',
@@ -475,7 +475,7 @@ describe('Middleware Route Protection', () => {
       );
       
       const request = createRequest('/admin/dashboard', incompleteToken);
-      const response = middleware(request);
+      const response = await middleware(request);
       
       expect(response.status).toBe(307);
       expect(response.headers.get('location')).toContain('/login');
@@ -483,18 +483,18 @@ describe('Middleware Route Protection', () => {
   });
 
   describe('Redirect URL Preservation', () => {
-    it('should include original URL in redirect query parameter', () => {
+    it('should include original URL in redirect query parameter', async () => {
       const request = createRequest('/admin/dashboard');
-      const response = middleware(request);
+      const response = await middleware(request);
       
       const location = response.headers.get('location');
       expect(location).toContain('/login?redirect=');
       expect(location).toContain(encodeURIComponent('/admin/dashboard'));
     });
 
-    it('should preserve query parameters in redirect URL', () => {
+    it('should preserve query parameters in redirect URL', async () => {
       const request = createRequest('/school-a/notices?filter=recent');
-      const response = middleware(request);
+      const response = await middleware(request);
       
       const location = response.headers.get('location');
       expect(location).toContain('/login?redirect=');
@@ -503,7 +503,7 @@ describe('Middleware Route Protection', () => {
   });
 
   describe('Edge Cases', () => {
-    it('should handle missing SESSION_SECRET gracefully', () => {
+    it('should handle missing SESSION_SECRET gracefully', async () => {
       delete process.env.SESSION_SECRET;
       
       const token = createSessionToken({
@@ -514,22 +514,22 @@ describe('Middleware Route Protection', () => {
       });
       
       const request = createRequest('/admin/dashboard', token);
-      const response = middleware(request);
+      const response = await middleware(request);
       
       // Should redirect to login when secret is missing
       expect(response.status).toBe(307);
       expect(response.headers.get('location')).toContain('/login');
     });
 
-    it('should handle empty session cookie', () => {
+    it('should handle empty session cookie', async () => {
       const request = createRequest('/admin/dashboard', '');
-      const response = middleware(request);
+      const response = await middleware(request);
       
       expect(response.status).toBe(307);
       expect(response.headers.get('location')).toContain('/login');
     });
 
-    it('should not protect non-existent routes', () => {
+    it('should not protect non-existent routes', async () => {
       const token = createSessionToken({
         uid: 'user-123',
         email: 'user@example.com',
@@ -538,7 +538,7 @@ describe('Middleware Route Protection', () => {
       });
       
       const request = createRequest('/some-random-route', token);
-      const response = middleware(request);
+      const response = await middleware(request);
       
       // Should pass through (Next.js will handle 404)
       expect(response.status).not.toBe(307);
