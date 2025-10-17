@@ -86,6 +86,12 @@ format = "service-worker"
 # - Cloudflare Dashboard > Workers > Logs
 # - Logpush (for production monitoring)
 
+[observability]
+[observability.logs]
+enabled = true
+head_sampling_rate = 1
+invocation_logs = true
+
 # Enable tail consumers for log streaming
 # [tail_consumers]
 # [[tail_consumers.bindings]]
