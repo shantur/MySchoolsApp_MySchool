@@ -17,9 +17,11 @@ jest.mock('next/server', () => require('./src/__mocks__/next-server'));
 // Firebase Client SDK has been removed during migration to Supabase
 // No mock needed as it's no longer used in the codebase
 
-// Mock window.location.assign for all tests
-// jsdom's location.assign throws "Not implemented" errors, so we mock it globally
-require('./jest.setup-location-mock');
+/**
+ * NOTE: window.location mocking cannot be done here because jsdom environment
+ * is not fully initialized when this file runs.
+ * Tests that need to mock window.location should do so in their beforeAll() or beforeEach() hooks.
+ */
 
 // Set a reasonable test timeout
 jest.setTimeout(10000); // 10 seconds per test

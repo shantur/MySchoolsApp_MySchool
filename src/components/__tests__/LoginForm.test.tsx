@@ -12,14 +12,27 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useRouter } from 'next/navigation';
 import LoginForm from '../LoginForm';
+import { navigation } from '@/lib/utils/navigation';
+
+// Access the global fetchMock from jest-fetch-mock
+declare const fetchMock: any;
 
 // Mock Next.js router
 jest.mock('next/navigation', () => ({
   useRouter: jest.fn(),
 }));
 
-// Mock fetch
-global.fetch = jest.fn();
+// Mock navigation utility
+jest.mock('@/lib/utils/navigation', () => ({
+  navigation: {
+    assign: jest.fn(),
+    reload: jest.fn(),
+    replace: jest.fn(),
+  },
+}));
+
+// jest-fetch-mock is enabled globally in jest.setup.js
+// We'll use fetchMock from jest-fetch-mock instead of global.fetch
 
 describe('LoginForm', () => {
   let mockPush: jest.Mock;
@@ -29,12 +42,12 @@ describe('LoginForm', () => {
     mockPush = jest.fn();
     mockRouter = { push: mockPush };
     (useRouter as jest.Mock).mockReturnValue(mockRouter);
-    (global.fetch as jest.Mock).mockClear();
     
-    // Clear the globally mocked location.assign
-    if (window.location.assign && typeof (window.location.assign as any).mockClear === 'function') {
-      (window.location.assign as any).mockClear();
-    }
+    // Reset fetch mock (jest-fetch-mock)
+    fetchMock.resetMocks();
+    
+    // Clear navigation mocks
+    jest.clearAllMocks();
   });
 
   afterEach(() => {
@@ -129,9 +142,8 @@ describe('LoginForm', () => {
 
     it('should disable form inputs while loading', async () => {
       const user = userEvent.setup();
-      (global.fetch as jest.Mock).mockImplementation(
-        () => new Promise(() => {}) // Never resolves
-      );
+      // Mock a fetch that never resolves to keep the loading state
+      fetchMock.mockImplementation(() => new Promise(() => {}));
       
       render(<LoginForm />);
       
@@ -161,12 +173,9 @@ describe('LoginForm', () => {
   describe('Form Submission', () => {
     it('should call login API on submit with correct credentials', async () => {
       const user = userEvent.setup();
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          user: { role: 'user', schoolId: 'school123' },
-        }),
-      });
+      fetchMock.mockResponseOnce(JSON.stringify({
+        user: { role: 'user', schoolId: 'school123' },
+      }), { status: 200 });
       
       render(<LoginForm />);
       
@@ -178,7 +187,7 @@ describe('LoginForm', () => {
       await user.click(screen.getByRole('button', { name: /login/i }));
       
       await waitFor(() => {
-        expect(global.fetch).toHaveBeenCalledWith('/api/auth/login', {
+        expect(fetchMock).toHaveBeenCalledWith('/api/auth/login', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -194,12 +203,9 @@ describe('LoginForm', () => {
 
     it('should redirect to user portal on successful user login', async () => {
       const user = userEvent.setup();
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          user: { role: 'user', schoolId: 'school123' },
-        }),
-      });
+      fetchMock.mockResponseOnce(JSON.stringify({
+        user: { role: 'user', schoolId: 'school123' },
+      }), { status: 200 });
       
       render(<LoginForm />);
       
@@ -211,18 +217,15 @@ describe('LoginForm', () => {
       await user.click(screen.getByRole('button', { name: /login/i }));
       
       await waitFor(() => {
-        expect(window.location.assign).toHaveBeenCalledWith('/school123/notices');
+        expect(navigation.assign).toHaveBeenCalledWith('/school123/notices');
       });
     });
 
     it('should redirect to admin dashboard on successful admin login', async () => {
       const user = userEvent.setup();
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          user: { role: 'admin', schoolId: 'school123' },
-        }),
-      });
+      fetchMock.mockResponseOnce(JSON.stringify({
+        user: { role: 'admin', schoolId: 'school123' },
+      }), { status: 200 });
       
       render(<LoginForm />);
       
@@ -234,7 +237,7 @@ describe('LoginForm', () => {
       await user.click(screen.getByRole('button', { name: /login/i }));
       
       await waitFor(() => {
-        expect(window.location.assign).toHaveBeenCalledWith('/admin/groups');
+        expect(navigation.assign).toHaveBeenCalledWith('/admin/groups');
       });
     });
 
@@ -242,13 +245,10 @@ describe('LoginForm', () => {
       const user = userEvent.setup();
       const { container } = render(<LoginForm />);
       
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
-        ok: false,
-        json: async () => ({
-          error: 'Invalid credentials',
-          code: 'auth/invalid-credentials',
-        }),
-      });
+      fetchMock.mockResponseOnce(JSON.stringify({
+        error: 'Invalid credentials',
+        code: 'auth/invalid-credentials',
+      }), { status: 401 });
       
       await user.type(
         screen.getByLabelText(/email address/i),
@@ -268,9 +268,7 @@ describe('LoginForm', () => {
       const user = userEvent.setup();
       const { container } = render(<LoginForm />);
       
-      (global.fetch as jest.Mock).mockRejectedValueOnce(
-        new Error('Network error')
-      );
+      fetchMock.mockRejectOnce(new Error('Network error'));
       
       await user.type(
         screen.getByLabelText(/email address/i),
@@ -294,10 +292,10 @@ describe('LoginForm', () => {
       const user = userEvent.setup();
       const { container } = render(<LoginForm />);
       
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
-        ok: false,
-        json: async () => ({ error: 'Test error', code: 'test_error' }),
-      });
+      fetchMock.mockResponseOnce(JSON.stringify({
+        error: 'Test error',
+        code: 'test_error'
+      }), { status: 400 });
       
       await user.type(
         screen.getByLabelText(/email address/i),
@@ -318,10 +316,9 @@ describe('LoginForm', () => {
       const { container } = render(<LoginForm />);
       
       // First failed attempt
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
-        ok: false,
-        json: async () => ({ error: 'First error' }),
-      });
+      fetchMock.mockResponseOnce(JSON.stringify({
+        error: 'First error'
+      }), { status: 400 });
       
       await user.type(
         screen.getByLabelText(/email address/i),
@@ -336,9 +333,7 @@ describe('LoginForm', () => {
       });
       
       // Second attempt - error should clear before showing new one
-      (global.fetch as jest.Mock).mockImplementation(
-        () => new Promise(() => {}) // Never resolves
-      );
+      fetchMock.mockImplementation(() => new Promise(() => {})); // Never resolves
       
       await user.clear(screen.getByLabelText(/^password$/i));
       await user.type(screen.getByLabelText(/^password$/i), 'newpass');

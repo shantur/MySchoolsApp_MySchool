@@ -7,14 +7,25 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { useRouter } from 'next/navigation';
 import LoginForm from '../LoginForm';
+import { navigation } from '@/lib/utils/navigation';
 
 // Mock the useRouter hook
 jest.mock('next/navigation', () => ({
   useRouter: jest.fn(),
 }));
 
-// Mock fetch
-global.fetch = jest.fn();
+// Mock navigation utility
+jest.mock('@/lib/utils/navigation', () => ({
+  navigation: {
+    assign: jest.fn(),
+    reload: jest.fn(),
+    replace: jest.fn(),
+  },
+}));
+
+// jest-fetch-mock is enabled globally in jest.setup.js
+// We'll use fetchMock from jest-fetch-mock instead of global.fetch
+declare const fetchMock: any;
 
 const mockPush = jest.fn();
 const mockUseRouter = useRouter as jest.MockedFunction<typeof useRouter>;
@@ -31,26 +42,54 @@ describe('LoginForm Redirect Logic', () => {
       prefetch: jest.fn(),
     } as any);
     
-    // Clear the globally mocked location.assign
+    // Reset fetch mock
+    fetchMock.resetMocks();
+    
+    // Mock successful login response for admin
+    fetchMock.mockResponse(JSON.stringify({
+      success: true,
+      user: {
+        uid: 'admin-123',
+        email: 'admin@test.com',
+        schoolId: 'test-school-123',
+        role: 'admin',
+        displayName: 'Test Admin User',
+        groupIds: [],
+      },
+    }), { status: 200 });
+  });
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockUseRouter.mockReturnValue({
+      push: mockPush,
+      replace: jest.fn(),
+      back: jest.fn(),
+      forward: jest.fn(),
+      refresh: jest.fn(),
+      prefetch: jest.fn(),
+    } as any);
+    
+    // Reset fetch mock
+    fetchMock.resetMocks();
+    
+    // Clear window.location.assign mock if it exists and is a jest mock
     if (window.location.assign && typeof (window.location.assign as any).mockClear === 'function') {
-      (window.location.assign as any).mockClear();
+      (window.location.assign as jest.Mock).mockClear();
     }
     
     // Mock successful login response for admin
-    (global.fetch as jest.Mock).mockResolvedValue({
-      ok: true,
-      json: async () => ({
-        success: true,
-        user: {
-          uid: 'admin-123',
-          email: 'admin@test.com',
-          schoolId: 'test-school-123',
-          role: 'admin',
-          displayName: 'Test Admin User',
-          groupIds: [],
-        },
-      }),
-    });
+    fetchMock.mockResponse(JSON.stringify({
+      success: true,
+      user: {
+        uid: 'admin-123',
+        email: 'admin@test.com',
+        schoolId: 'test-school-123',
+        role: 'admin',
+        displayName: 'Test Admin User',
+        groupIds: [],
+      },
+    }), { status: 200 });
   });
 
   it('should redirect admin users to admin dashboard', async () => {
@@ -69,26 +108,23 @@ describe('LoginForm Redirect Logic', () => {
     
     // Wait for the redirect to happen
     await waitFor(() => {
-      expect(window.location.assign).toHaveBeenCalledWith('/admin/groups');
+      expect(navigation.assign).toHaveBeenCalledWith('/admin/groups');
     });
   });
 
   it('should redirect regular users to notices page', async () => {
     // Mock successful login response for regular user
-    (global.fetch as jest.Mock).mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({
-        success: true,
-        user: {
-          uid: 'user-123',
-          email: 'user@test.com',
-          schoolId: 'test-school-123',
-          role: 'user',
-          displayName: 'Test Regular User',
-          groupIds: [],
-        },
-      }),
-    });
+    fetchMock.mockResponseOnce(JSON.stringify({
+      success: true,
+      user: {
+        uid: 'user-123',
+        email: 'user@test.com',
+        schoolId: 'test-school-123',
+        role: 'user',
+        displayName: 'Test Regular User',
+        groupIds: [],
+      },
+    }), { status: 200 });
     
     render(<LoginForm />);
     
@@ -105,7 +141,7 @@ describe('LoginForm Redirect Logic', () => {
     
     // Wait for the redirect to happen
     await waitFor(() => {
-      expect(window.location.assign).toHaveBeenCalledWith('/test-school-123/notices');
+      expect(navigation.assign).toHaveBeenCalledWith('/test-school-123/notices');
     });
   });
 
@@ -127,10 +163,10 @@ describe('LoginForm Redirect Logic', () => {
     
     // Wait for the redirect to happen
     await waitFor(() => {
-      expect(window.location.assign).toHaveBeenCalledWith(redirectUrl);
+      expect(navigation.assign).toHaveBeenCalledWith(redirectUrl);
     });
     
     // Verify it was called with redirectUrl, not admin dashboard
-    expect(window.location.assign).not.toHaveBeenCalledWith('/admin/groups');
+    expect(navigation.assign).not.toHaveBeenCalledWith('/admin/groups');
   });
 });

@@ -8,7 +8,8 @@ const createJestConfig = nextJest({
 // Add any custom config to be passed to Jest
 const customJestConfig = {
   setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
-  testEnvironment: 'jest-environment-jsdom',
+  // Use custom jsdom environment that makes window.location mockable
+  testEnvironment: '<rootDir>/jest-environment-jsdom-with-location-mock.js',
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
   },

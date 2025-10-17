@@ -8,6 +8,7 @@
  */
 
 import { useState, FormEvent } from 'react';
+import { navigation } from '@/lib/utils/navigation';
 
 interface LoginFormProps {
   redirectUrl?: string;
@@ -63,10 +64,10 @@ export default function LoginForm({ redirectUrl }: LoginFormProps) {
         console.log('[LoginForm] Redirecting user to:', redirectTo);
       }
       
-      // Use window.location.assign() for full page navigation with cookie
+      // Use navigation.assign() for full page navigation with cookie
       // This ensures the Set-Cookie header is processed before the next request
       console.log('[LoginForm] Performing full page navigation to:', redirectTo);
-      window.location.assign(redirectTo);
+      navigation.assign(redirectTo);
     } catch (error) {
       console.error('Login error:', error);
       setError('An error occurred. Please try again.');
