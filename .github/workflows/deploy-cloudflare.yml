@@ -119,6 +119,9 @@ jobs:
         run: npm run build
         env:
           NODE_ENV: production
+          # Supabase configuration required for build-time data collection
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL || 'https://placeholder.supabase.co' }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY || 'placeholder-anon-key' }}
 
       # -------------------------------------------------------------------------
       # OpenNext.js Build for Cloudflare Workers

@@ -31,18 +31,18 @@ describe('Supabase Client', () => {
       delete process.env.NEXT_PUBLIC_SUPABASE_URL;
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'test-anon-key';
 
-      await expect(async () => {
-        await import('../client');
-      }).rejects.toThrow('Supabase URL is not configured');
+      // Import and call createBrowserClient - error should be thrown at call time, not import time
+      const { createBrowserClient } = await import('../client');
+      expect(() => createBrowserClient()).toThrow('Supabase URL is not configured');
     });
 
     it('should throw error if NEXT_PUBLIC_SUPABASE_ANON_KEY is missing', async () => {
       process.env.NEXT_PUBLIC_SUPABASE_URL = 'http://localhost:54321';
       delete process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-      await expect(async () => {
-        await import('../client');
-      }).rejects.toThrow('Supabase Anon Key is not configured');
+      // Import and call createBrowserClient - error should be thrown at call time, not import time
+      const { createBrowserClient } = await import('../client');
+      expect(() => createBrowserClient()).toThrow('Supabase Anon Key is not configured');
     });
 
     it('should return singleton instance on multiple calls', async () => {

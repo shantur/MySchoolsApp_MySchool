@@ -8,22 +8,25 @@
 
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
-// Validate required environment variables
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+// Get environment variables with fallback for build-time
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 
-if (!supabaseUrl) {
-  throw new Error(
-    'Supabase URL is not configured. ' +
-    'Please ensure NEXT_PUBLIC_SUPABASE_URL is set.'
-  );
-}
+// Validate at runtime (not at module load time to allow builds to succeed)
+function validateConfig() {
+  if (!supabaseUrl) {
+    throw new Error(
+      'Supabase URL is not configured. ' +
+      'Please ensure NEXT_PUBLIC_SUPABASE_URL is set.'
+    );
+  }
 
-if (!supabaseServiceRoleKey) {
-  throw new Error(
-    'Supabase Service Role Key is not configured. ' +
-    'Please ensure SUPABASE_SERVICE_ROLE_KEY is set for server-side operations.'
-  );
+  if (!supabaseServiceRoleKey) {
+    throw new Error(
+      'Supabase Service Role Key is not configured. ' +
+      'Please ensure SUPABASE_SERVICE_ROLE_KEY is set for server-side operations.'
+    );
+  }
 }
 
 // Singleton instance
@@ -38,11 +41,14 @@ let serverClient: SupabaseClient | null = null;
  * @return {SupabaseClient} Supabase server client instance
  */
 export function createServerClient(): SupabaseClient {
+  // Validate configuration at runtime
+  validateConfig();
+  
   if (serverClient) {
     return serverClient;
   }
 
-  serverClient = createClient(supabaseUrl!, supabaseServiceRoleKey!, {
+  serverClient = createClient(supabaseUrl, supabaseServiceRoleKey, {
     auth: {
       autoRefreshToken: false,
       persistSession: false,
@@ -52,8 +58,10 @@ export function createServerClient(): SupabaseClient {
   return serverClient;
 }
 
-// Export singleton instance for direct use
-export const supabaseServer = createServerClient();
+// Export singleton instance for direct use (only initialize if config is available)
+export const supabaseServer = supabaseUrl && supabaseServiceRoleKey
+  ? createServerClient()
+  : null as any as SupabaseClient; // Type assertion for build-time compatibility
 
 /**
  * Reset server client instance (useful for testing)

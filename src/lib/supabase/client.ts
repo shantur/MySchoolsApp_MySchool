@@ -9,22 +9,25 @@
 
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
-// Validate required environment variables
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+// Get environment variables with fallback for build-time
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 
-if (!supabaseUrl) {
-  throw new Error(
-    'Supabase URL is not configured. ' +
-    'Please ensure NEXT_PUBLIC_SUPABASE_URL is set.'
-  );
-}
+// Validate at runtime (not at module load time to allow builds to succeed)
+function validateConfig() {
+  if (!supabaseUrl) {
+    throw new Error(
+      'Supabase URL is not configured. ' +
+      'Please ensure NEXT_PUBLIC_SUPABASE_URL is set.'
+    );
+  }
 
-if (!supabaseAnonKey) {
-  throw new Error(
-    'Supabase Anon Key is not configured. ' +
-    'Please ensure NEXT_PUBLIC_SUPABASE_ANON_KEY is set.'
-  );
+  if (!supabaseAnonKey) {
+    throw new Error(
+      'Supabase Anon Key is not configured. ' +
+      'Please ensure NEXT_PUBLIC_SUPABASE_ANON_KEY is set.'
+    );
+  }
 }
 
 // Singleton instance
@@ -36,11 +39,14 @@ let browserClient: SupabaseClient | null = null;
  * @return {SupabaseClient} Supabase client instance
  */
 export function createBrowserClient(): SupabaseClient {
+  // Validate configuration at runtime
+  validateConfig();
+  
   if (browserClient) {
     return browserClient;
   }
 
-  browserClient = createClient(supabaseUrl!, supabaseAnonKey!, {
+  browserClient = createClient(supabaseUrl, supabaseAnonKey, {
     auth: {
       persistSession: true,
       autoRefreshToken: true,
@@ -52,5 +58,7 @@ export function createBrowserClient(): SupabaseClient {
   return browserClient;
 }
 
-// Export singleton instance for direct use
-export const supabase = createBrowserClient();
+// Export singleton instance for direct use (only initialize if config is available)
+export const supabase = supabaseUrl && supabaseAnonKey 
+  ? createBrowserClient() 
+  : null as any as SupabaseClient; // Type assertion for build-time compatibility

@@ -31,18 +31,18 @@ describe('Supabase Server', () => {
       delete process.env.NEXT_PUBLIC_SUPABASE_URL;
       process.env.SUPABASE_SERVICE_ROLE_KEY = 'test-service-role-key';
 
-      await expect(async () => {
-        await import('../server');
-      }).rejects.toThrow('Supabase URL is not configured');
+      // Import and call createServerClient - error should be thrown at call time, not import time
+      const { createServerClient } = await import('../server');
+      expect(() => createServerClient()).toThrow('Supabase URL is not configured');
     });
 
     it('should throw error if SUPABASE_SERVICE_ROLE_KEY is missing', async () => {
       process.env.NEXT_PUBLIC_SUPABASE_URL = 'http://localhost:54321';
       delete process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-      await expect(async () => {
-        await import('../server');
-      }).rejects.toThrow('Supabase Service Role Key is not configured');
+      // Import and call createServerClient - error should be thrown at call time, not import time
+      const { createServerClient } = await import('../server');
+      expect(() => createServerClient()).toThrow('Supabase Service Role Key is not configured');
     });
 
     it('should return singleton instance on multiple calls', async () => {
