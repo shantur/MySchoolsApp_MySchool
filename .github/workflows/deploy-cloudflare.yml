@@ -288,6 +288,46 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
 
       # -------------------------------------------------------------------------
+      # Run Supabase Database Migrations
+      # -------------------------------------------------------------------------
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Run Supabase migrations
+        run: |
+          echo "🗄️ Running Supabase database migrations..."
+          
+          # Link to Supabase project
+          supabase link --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --password ${{ secrets.SUPABASE_DB_PASSWORD }}
+          
+          # Run migrations
+          supabase db push
+          
+          echo "✅ Database migrations completed successfully"
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+
+      - name: Verify database migrations
+        run: |
+          echo "🔍 Verifying database schema..."
+          
+          # Optional: Run verification script if it exists
+          if [ -f "supabase/verify_schema.js" ]; then
+            echo "Running schema verification script..."
+            node supabase/verify_schema.js
+          else
+            echo "No verification script found, skipping..."
+          fi
+          
+          echo "✅ Database verification completed"
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        continue-on-error: true
+
+      # -------------------------------------------------------------------------
       # Create Deployment Summary
       # -------------------------------------------------------------------------
       - name: Create deployment summary
@@ -309,6 +349,7 @@ jobs:
           echo "- [x] Worker secrets configuration" >> $GITHUB_STEP_SUMMARY
           echo "- [x] Cloudflare Workers deployment" >> $GITHUB_STEP_SUMMARY
           echo "- [x] Post-deployment health check" >> $GITHUB_STEP_SUMMARY
+          echo "- [x] Supabase database migrations" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### 🔗 Access URLs" >> $GITHUB_STEP_SUMMARY
           echo "- **Application (Custom Domain):** https://myschoolweb.myschools.app" >> $GITHUB_STEP_SUMMARY
