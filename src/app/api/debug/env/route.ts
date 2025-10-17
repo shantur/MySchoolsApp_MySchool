@@ -50,7 +50,7 @@ export async function GET() {
       status: 'success',
       environment: env,
       missingVariables: missingVars.length > 0 ? missingVars : 'All required variables are set',
-      runtime: typeof EdgeRuntime !== 'undefined' ? 'Edge Runtime' : 'Node.js Runtime',
+      runtime: typeof globalThis !== 'undefined' && 'EdgeRuntime' in globalThis ? 'Edge Runtime' : 'Node.js Runtime',
       timestamp: new Date().toISOString(),
     }, { 
       status: 200,
