@@ -1,14 +1,14 @@
 -- MySchoolWeb Initial Schema Migration
 -- Converts Firestore collections to PostgreSQL tables with proper constraints
 
--- Enable UUID extension for generating UUIDs
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+-- Note: Using gen_random_uuid() which is built into PostgreSQL 13+
+-- No extensions needed for UUID generation
 
 -- =====================================================
 -- SCHOOLS TABLE
 -- =====================================================
 CREATE TABLE schools (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
   address TEXT,
   contact_email TEXT,
@@ -59,7 +59,7 @@ CREATE INDEX idx_users_created_at ON users(created_at DESC);
 -- GROUPS TABLE
 -- =====================================================
 CREATE TABLE groups (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
   description TEXT,
@@ -80,7 +80,7 @@ CREATE INDEX idx_groups_created_at ON groups(created_at DESC);
 -- NOTICES TABLE
 -- =====================================================
 CREATE TABLE notices (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   group_id UUID NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
   title TEXT NOT NULL,
@@ -114,7 +114,7 @@ CREATE INDEX idx_notices_attachments ON notices USING GIN (attachments);
 -- NOTICE_READS TABLE
 -- =====================================================
 CREATE TABLE notice_reads (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   notice_id UUID NOT NULL REFERENCES notices(id) ON DELETE CASCADE,
   school_id UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
@@ -135,7 +135,7 @@ CREATE INDEX idx_notice_reads_read_at ON notice_reads(read_at DESC);
 -- AUDIT_LOGS TABLE
 -- =====================================================
 CREATE TABLE audit_logs (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   action TEXT NOT NULL,
   entity_type TEXT NOT NULL CHECK (entity_type IN ('school', 'user', 'group', 'notice')),
   entity_id UUID NOT NULL,
