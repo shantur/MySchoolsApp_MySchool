@@ -53,15 +53,12 @@ env:
 
 jobs:
   # =============================================================================
-  # Job 1: Build and Test
+  # Job 1: Build, Test, and Deploy
   # =============================================================================
-  build-and-test:
-    name: Build and Test
+  build-test-deploy:
+    name: Build, Test, and Deploy
     runs-on: ubuntu-latest
-    
-    # Set deployment size as output for deploy job
-    outputs:
-      deployment_size_mb: ${{ steps.check-size.outputs.size_mb }}
+    environment: ${{ (github.ref == 'refs/heads/main' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'production')) && 'production' || 'staging' }}
     
     steps:
       # -------------------------------------------------------------------------
@@ -175,90 +172,55 @@ jobs:
           fi
 
       # -------------------------------------------------------------------------
-      # Upload Artifacts
+      # Determine Environment
       # -------------------------------------------------------------------------
-      - name: Upload OpenNext.js build artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: opennext-build
-          path: |
-            .open-next/
-            wrangler.toml
-            package.json
-          retention-days: 7
-
-      - name: Upload test results
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: test-results
-          path: |
-            test-results/
-            playwright-report/
-          retention-days: 14
-
-  # =============================================================================
-  # Job 2: Deploy to Cloudflare Workers (Staging)
-  # =============================================================================
-  deploy-staging:
-    name: Deploy to Staging
-    needs: build-and-test
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/develop' || github.event_name == 'workflow_dispatch'
-    environment: staging
-    
-    steps:
-      # -------------------------------------------------------------------------
-      # Setup
-      # -------------------------------------------------------------------------
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Download OpenNext.js build artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: opennext-build
-          path: .
+      - name: Determine deployment environment
+        id: env
+        run: |
+          if [[ "${{ github.ref }}" == "refs/heads/main" ]] || [[ "${{ github.event.inputs.environment }}" == "production" ]]; then
+            echo "environment=production" >> $GITHUB_OUTPUT
+            echo "worker_name=myschoolweb-prod" >> $GITHUB_OUTPUT
+            echo "config_file=wrangler.production.toml" >> $GITHUB_OUTPUT
+          else
+            echo "environment=staging" >> $GITHUB_OUTPUT
+            echo "worker_name=${{ vars.CLOUDFLARE_WORKERS_STAGING_NAME || 'myschoolweb-staging' }}" >> $GITHUB_OUTPUT
+            echo "config_file=wrangler.staging.toml" >> $GITHUB_OUTPUT
+          fi
 
       # -------------------------------------------------------------------------
       # Update Wrangler Configuration
       # -------------------------------------------------------------------------
-      - name: Configure Wrangler for Staging
+      - name: Configure Wrangler
         run: |
-          echo "📝 Configuring Wrangler for Staging deployment..."
+          echo "📝 Configuring Wrangler for ${{ steps.env.outputs.environment }} deployment..."
           
-          # Create temporary wrangler.staging.toml with GitHub Secrets
-          cat > wrangler.staging.toml << 'EOF'
-          # Auto-generated Wrangler configuration for Staging deployment
+          # Create temporary wrangler configuration with GitHub Secrets
+          cat > ${{ steps.env.outputs.config_file }} << 'EOF'
+          # Auto-generated Wrangler configuration for ${{ steps.env.outputs.environment }} deployment
           # DO NOT EDIT - Generated during CI/CD deployment
           
-          name = "${{ vars.CLOUDFLARE_WORKERS_STAGING_NAME || 'myschoolweb-staging' }}"
+          name = "${{ steps.env.outputs.worker_name }}"
           main = ".open-next/worker.js"
           compatibility_date = "2024-10-15"
-          compatibility_flags = ["nodejs_compat"]
+          compatibility_flags = ["nodejs_compat", "global_fetch_strictly_public"]
           account_id = "${{ secrets.CLOUDFLARE_ACCOUNT_ID }}"
+          
+          [[routes]]
+          pattern = "myschoolweb.myschools.app/*"
+          zone_name = "myschools.app"
           
           [vars]
           NEXT_PUBLIC_SUPABASE_URL = "${{ secrets.SUPABASE_URL }}"
           NEXT_PUBLIC_SUPABASE_ANON_KEY = "${{ secrets.SUPABASE_ANON_KEY }}"
-          NODE_ENV = "staging"
+          NODE_ENV = "${{ steps.env.outputs.environment }}"
           EOF
           
-          echo "✅ Wrangler configuration created for staging"
+          echo "✅ Wrangler configuration created for ${{ steps.env.outputs.environment }}"
           echo "📊 Configuration:"
-          echo "  - Worker Name: ${{ vars.CLOUDFLARE_WORKERS_STAGING_NAME || 'myschoolweb-staging' }}"
+          echo "  - Worker Name: ${{ steps.env.outputs.worker_name }}"
           echo "  - Account ID: $(echo '${{ secrets.CLOUDFLARE_ACCOUNT_ID }}' | cut -c1-10)..."
           echo "  - Supabase URL: ${{ secrets.SUPABASE_URL }}"
-          echo "  - Node Environment: staging"
+          echo "  - Node Environment: ${{ steps.env.outputs.environment }}"
 
       # -------------------------------------------------------------------------
       # Configure Cloudflare Secrets
@@ -268,10 +230,10 @@ jobs:
           echo "🔐 Configuring Cloudflare Worker secrets..."
           
           # Set SUPABASE_SERVICE_ROLE_KEY secret
-          echo "${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" | npx wrangler secret put SUPABASE_SERVICE_ROLE_KEY --config wrangler.staging.toml
+          echo "${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" | npx wrangler secret put SUPABASE_SERVICE_ROLE_KEY --config ${{ steps.env.outputs.config_file }}
           
           # Set SESSION_SECRET secret
-          echo "${{ secrets.SESSION_SECRET }}" | npx wrangler secret put SESSION_SECRET --config wrangler.staging.toml
+          echo "${{ secrets.SESSION_SECRET }}" | npx wrangler secret put SESSION_SECRET --config ${{ steps.env.outputs.config_file }}
           
           echo "✅ Cloudflare Worker secrets configured"
         env:
@@ -286,7 +248,7 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: deploy --config wrangler.staging.toml
+          command: deploy --config ${{ steps.env.outputs.config_file }}
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -299,22 +261,23 @@ jobs:
           echo "⏳ Waiting 30 seconds for deployment to propagate..."
           sleep 30
           
-          # Get worker URL from Cloudflare
-          WORKER_NAME="${{ vars.CLOUDFLARE_WORKERS_STAGING_NAME || 'myschoolweb-staging' }}"
-          WORKER_URL="https://${WORKER_NAME}.${{ secrets.CLOUDFLARE_ACCOUNT_ID }}.workers.dev"
+          WORKER_URL="https://myschoolweb.myschools.app"
+          WORKER_DEV_URL="https://${{ steps.env.outputs.worker_name }}.${{ secrets.CLOUDFLARE_ACCOUNT_ID }}.workers.dev"
           
-          echo "🔍 Health checking: $WORKER_URL"
-          
-          # Health check the deployed worker
+          echo "🔍 Health checking custom domain: $WORKER_URL"
           HTTP_CODE=$(curl -f -s -o /dev/null -w "%{http_code}" "$WORKER_URL" || echo "000")
-          echo "HTTP Response Code: $HTTP_CODE"
+          echo "Custom domain HTTP Response Code: $HTTP_CODE"
           
-          if [ "$HTTP_CODE" = "200" ]; then
+          echo "🔍 Health checking workers.dev URL: $WORKER_DEV_URL"
+          HTTP_CODE_DEV=$(curl -f -s -o /dev/null -w "%{http_code}" "$WORKER_DEV_URL" || echo "000")
+          echo "Workers.dev HTTP Response Code: $HTTP_CODE_DEV"
+          
+          if [ "$HTTP_CODE" = "200" ] || [ "$HTTP_CODE_DEV" = "200" ]; then
             echo "✅ Deployment health check passed"
           else
-            echo "⚠️ Deployment health check returned $HTTP_CODE"
+            echo "⚠️ Deployment health check failed for both URLs"
             echo "Checking worker logs for errors..."
-            npx wrangler tail --config wrangler.staging.toml --once || true
+            npx wrangler tail --config ${{ steps.env.outputs.config_file }} --once || true
           fi
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -324,14 +287,11 @@ jobs:
       # -------------------------------------------------------------------------
       - name: Create deployment summary
         run: |
-          WORKER_NAME="${{ vars.CLOUDFLARE_WORKERS_STAGING_NAME || 'myschoolweb-staging' }}"
-          WORKER_URL="https://${WORKER_NAME}.${{ secrets.CLOUDFLARE_ACCOUNT_ID }}.workers.dev"
-          
-          echo "## 🚀 Deployment Summary - Staging" >> $GITHUB_STEP_SUMMARY
+          echo "## 🚀 Deployment Summary - ${{ steps.env.outputs.environment }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Environment:** Staging" >> $GITHUB_STEP_SUMMARY
-          echo "**Worker Name:** ${WORKER_NAME}" >> $GITHUB_STEP_SUMMARY
-          echo "**Deployment Size:** ${{ needs.build-and-test.outputs.deployment_size_mb }}MB" >> $GITHUB_STEP_SUMMARY
+          echo "**Environment:** ${{ steps.env.outputs.environment }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Worker Name:** ${{ steps.env.outputs.worker_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Deployment Size:** ${{ steps.check-size.outputs.size_mb }}MB" >> $GITHUB_STEP_SUMMARY
           echo "**Node.js Version:** ${{ env.NODE_VERSION }}" >> $GITHUB_STEP_SUMMARY
           echo "**OpenNext.js Version:** ${{ env.OPENNEXT_VERSION }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
@@ -346,175 +306,24 @@ jobs:
           echo "- [x] Post-deployment health check" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### 🔗 Access URLs" >> $GITHUB_STEP_SUMMARY
-          echo "- **Application:** ${WORKER_URL}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Cloudflare Dashboard:** https://dash.cloudflare.com/${{ secrets.CLOUDFLARE_ACCOUNT_ID }}/workers/services/view/${WORKER_NAME}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Application (Custom Domain):** https://myschoolweb.myschools.app" >> $GITHUB_STEP_SUMMARY
+          echo "- **Application (Workers.dev):** https://${{ steps.env.outputs.worker_name }}.${{ secrets.CLOUDFLARE_ACCOUNT_ID }}.workers.dev" >> $GITHUB_STEP_SUMMARY
+          echo "- **Cloudflare Dashboard:** https://dash.cloudflare.com/${{ secrets.CLOUDFLARE_ACCOUNT_ID }}/workers/services/view/${{ steps.env.outputs.worker_name }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Supabase Dashboard:** ${{ secrets.SUPABASE_URL }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### 📊 Monitoring" >> $GITHUB_STEP_SUMMARY
-          echo "- **Live Logs:** \`npx wrangler tail --env staging\`" >> $GITHUB_STEP_SUMMARY
-          echo "- **Analytics:** [Cloudflare Dashboard](https://dash.cloudflare.com/${{ secrets.CLOUDFLARE_ACCOUNT_ID }}/workers/services/view/${WORKER_NAME}/analytics)" >> $GITHUB_STEP_SUMMARY
+          echo "- **Live Logs:** \`npx wrangler tail --config ${{ steps.env.outputs.config_file }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Analytics:** [Cloudflare Dashboard](https://dash.cloudflare.com/${{ secrets.CLOUDFLARE_ACCOUNT_ID }}/workers/services/view/${{ steps.env.outputs.worker_name }}/analytics)" >> $GITHUB_STEP_SUMMARY
 
-  # =============================================================================
-  # Job 3: Deploy to Cloudflare Workers (Production)
-  # =============================================================================
-  deploy-production:
-    name: Deploy to Production
-    needs: build-and-test
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'production')
-    environment: production
-    
-    steps:
       # -------------------------------------------------------------------------
-      # Setup
+      # Upload Test Results (if any failures)
       # -------------------------------------------------------------------------
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: failure()
         with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Download OpenNext.js build artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: opennext-build
-          path: .
-
-      # -------------------------------------------------------------------------
-      # Update Wrangler Configuration
-      # -------------------------------------------------------------------------
-      - name: Configure Wrangler for Production
-        run: |
-          echo "📝 Configuring Wrangler for Production deployment..."
-          
-          # Create temporary wrangler.production.toml with GitHub Secrets
-          cat > wrangler.production.toml << 'EOF'
-          # Auto-generated Wrangler configuration for Production deployment
-          # DO NOT EDIT - Generated during CI/CD deployment
-          
-          name = "myschoolweb-prod"
-          main = ".open-next/worker.js"
-          compatibility_date = "2024-10-15"
-          compatibility_flags = ["nodejs_compat"]
-          account_id = "${{ secrets.CLOUDFLARE_ACCOUNT_ID }}"
-          
-          [vars]
-          NEXT_PUBLIC_SUPABASE_URL = "${{ secrets.SUPABASE_URL }}"
-          NEXT_PUBLIC_SUPABASE_ANON_KEY = "${{ secrets.SUPABASE_ANON_KEY }}"
-          NODE_ENV = "production"
-          EOF
-          
-          echo "✅ Wrangler configuration created for production"
-
-      # -------------------------------------------------------------------------
-      # Configure Cloudflare Secrets
-      # -------------------------------------------------------------------------
-      - name: Set Cloudflare Worker secrets
-        run: |
-          echo "🔐 Configuring Cloudflare Worker secrets..."
-          
-          # Set SUPABASE_SERVICE_ROLE_KEY secret
-          echo "${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" | npx wrangler secret put SUPABASE_SERVICE_ROLE_KEY --config wrangler.production.toml
-          
-          # Set SESSION_SECRET secret
-          echo "${{ secrets.SESSION_SECRET }}" | npx wrangler secret put SESSION_SECRET --config wrangler.production.toml
-          
-          echo "✅ Cloudflare Worker secrets configured"
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-
-      # -------------------------------------------------------------------------
-      # Deploy to Cloudflare Workers
-      # -------------------------------------------------------------------------
-      - name: Deploy to Cloudflare Workers
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: deploy --config wrangler.production.toml
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-
-      # -------------------------------------------------------------------------
-      # Post-Deployment Verification
-      # -------------------------------------------------------------------------
-      - name: Post-deployment health check
-        run: |
-          echo "⏳ Waiting 30 seconds for deployment to propagate..."
-          sleep 30
-          
-          WORKER_URL="https://myschoolweb-prod.${{ secrets.CLOUDFLARE_ACCOUNT_ID }}.workers.dev"
-          
-          echo "🔍 Health checking: $WORKER_URL"
-          
-          HTTP_CODE=$(curl -f -s -o /dev/null -w "%{http_code}" "$WORKER_URL" || echo "000")
-          echo "HTTP Response Code: $HTTP_CODE"
-          
-          if [ "$HTTP_CODE" = "200" ]; then
-            echo "✅ Deployment health check passed"
-          else
-            echo "⚠️ Deployment health check returned $HTTP_CODE"
-            echo "Checking worker logs for errors..."
-            npx wrangler tail --config wrangler.production.toml --once || true
-          fi
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-
-      # -------------------------------------------------------------------------
-      # Create Deployment Summary
-      # -------------------------------------------------------------------------
-      - name: Create deployment summary
-        run: |
-          WORKER_URL="https://myschoolweb-prod.${{ secrets.CLOUDFLARE_ACCOUNT_ID }}.workers.dev"
-          
-          echo "## 🚀 Deployment Summary - Production" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Environment:** Production" >> $GITHUB_STEP_SUMMARY
-          echo "**Worker Name:** myschoolweb-prod" >> $GITHUB_STEP_SUMMARY
-          echo "**Deployment Size:** ${{ needs.build-and-test.outputs.deployment_size_mb }}MB" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### 🔗 Access URLs" >> $GITHUB_STEP_SUMMARY
-          echo "- **Application:** ${WORKER_URL}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Cloudflare Dashboard:** https://dash.cloudflare.com/${{ secrets.CLOUDFLARE_ACCOUNT_ID }}/workers/services/view/myschoolweb-prod" >> $GITHUB_STEP_SUMMARY
-
-  # =============================================================================
-  # Job 4: Notify on Failure
-  # =============================================================================
-  notify-on-failure:
-    name: Notify on Failure
-    needs: [build-and-test, deploy-staging, deploy-production]
-    runs-on: ubuntu-latest
-    if: failure()
-    
-    steps:
-      - name: Create failure notification
-        run: |
-          echo "## ❌ Deployment Failed" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Branch:** ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
-          echo "**Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
-          echo "**Workflow Run:** [View Details](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### 🔍 Failed Jobs" >> $GITHUB_STEP_SUMMARY
-          if [ "${{ needs.build-and-test.result }}" == "failure" ]; then
-            echo "- [x] Build and Test: FAILED" >> $GITHUB_STEP_SUMMARY
-          fi
-          if [ "${{ needs.deploy-staging.result }}" == "failure" ]; then
-            echo "- [x] Deploy Staging: FAILED" >> $GITHUB_STEP_SUMMARY
-          fi
-          if [ "${{ needs.deploy-production.result }}" == "failure" ]; then
-            echo "- [x] Deploy Production: FAILED" >> $GITHUB_STEP_SUMMARY
-          fi
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### 🛠️ Next Steps" >> $GITHUB_STEP_SUMMARY
-          echo "1. Review the failed job logs for detailed error information" >> $GITHUB_STEP_SUMMARY
-          echo "2. Fix the identified issues" >> $GITHUB_STEP_SUMMARY
-          echo "3. Push new commits or re-run the workflow" >> $GITHUB_STEP_SUMMARY
+          name: test-results
+          path: |
+            test-results/
+            playwright-report/
+          retention-days: 14
