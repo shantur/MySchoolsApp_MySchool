@@ -205,6 +205,11 @@ jobs:
           compatibility_flags = ["nodejs_compat", "global_fetch_strictly_public"]
           account_id = "${{ secrets.CLOUDFLARE_ACCOUNT_ID }}"
           
+          # Configure assets directory for static files (CSS, JS, images)
+          [assets]
+          directory = "./.open-next/assets"
+          binding = "ASSETS"
+          
           [[routes]]
           pattern = "myschoolweb.myschools.app/*"
           zone_name = "myschools.app"

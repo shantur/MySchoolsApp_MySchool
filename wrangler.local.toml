@@ -1,0 +1,14 @@
+name = "myschoolweb-local"
+main = ".open-next/worker.js"
+compatibility_date = "2024-10-15"
+compatibility_flags = ["nodejs_compat", "global_fetch_strictly_public"]
+
+# Configure assets directory for static files
+[assets]
+directory = "./.open-next/assets"
+binding = "ASSETS"
+
+[vars]
+NEXT_PUBLIC_SUPABASE_URL = "http://127.0.0.1:54321"
+NEXT_PUBLIC_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0"
+NODE_ENV = "development"
