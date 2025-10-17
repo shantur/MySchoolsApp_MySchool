@@ -159,7 +159,10 @@ async function getSession(request: NextRequest): Promise<UserSession | null> {
   const sessionCookie = request.cookies.get(SESSION_CONFIG.cookieName);
   
   console.log(`[Middleware] Cookie check for ${SESSION_CONFIG.cookieName}:`, sessionCookie ? 'Found' : 'Not found');
-  console.log(`[Middleware] All cookies:`, Array.from(request.cookies.getAll()).map(c => c.name));
+  // Only log all cookies if getAll() is available (not available in test mocks)
+  if (typeof request.cookies.getAll === 'function') {
+    console.log(`[Middleware] All cookies:`, Array.from(request.cookies.getAll()).map(c => c.name));
+  }
   
   if (!sessionCookie) {
     console.log('[Middleware] No session cookie found');
