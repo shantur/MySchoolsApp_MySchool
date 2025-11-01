@@ -18,36 +18,38 @@ const mockUsers = new Map();
 const mockUserDocs = new Map();
 let userIdCounter = 1;
 
+const performSignIn = async ({ email, password }: { email: string; password: string }) => {
+  const user = Array.from(mockUsers.values()).find(
+    (u: any) => u.email === email
+  );
+  if (!user || user.password !== password) {
+    return {
+      data: { user: null, session: null },
+      error: { message: 'Invalid credentials' },
+    };
+  }
+  return {
+    data: {
+      user: { id: user.id, email: user.email },
+      session: { access_token: 'mock-token', user: { id: user.id, email: user.email } }
+    },
+    error: null,
+  };
+};
+
 // Mock the supabase server module
 jest.mock('@/lib/supabase/server', () => ({
   supabaseServer: {
     auth: {
-      signInWithPassword: jest.fn(async ({ email, password }) => {
-        const user = Array.from(mockUsers.values()).find(
-          (u: any) => u.email === email
-        );
-        if (!user || user.password !== password) {
-          return {
-            data: { user: null, session: null },
-            error: { message: 'Invalid credentials' },
-          };
-        }
-        return {
-          data: { 
-            user: { id: user.id, email: user.email },
-            session: { access_token: 'mock-token', user: { id: user.id, email: user.email } }
-          },
-          error: null,
-        };
-      }),
+      signInWithPassword: jest.fn(performSignIn),
       admin: {
         createUser: jest.fn(async (userData: any) => {
           const uid = `user-${userIdCounter++}`;
-          const user = { 
-            id: uid, 
+          const user = {
+            id: uid,
             email: userData.email,
             password: userData.password, // Store password for authentication
-            user_metadata: { 
+            user_metadata: {
               display_name: userData.user_metadata?.display_name,
             }
           };
@@ -95,7 +97,15 @@ jest.mock('@/lib/supabase/server', () => ({
   },
 }));
 
-jest.mock('@supabase/supabase-js', () => ({}));
+jest.mock('@supabase/supabase-js', () => {
+  const createClient = jest.fn(() => ({
+    auth: {
+      signInWithPassword: jest.fn(performSignIn),
+    },
+  }));
+
+  return { createClient };
+});
 
 // Import after mocking
 import { authenticateUser, createUserAccount } from '@/lib/services/auth.service';
