@@ -1,5 +1,10 @@
+# MySchoolWeb - Supabase Local Development Configuration
 # For detailed configuration reference documentation, visit:
 # https://supabase.com/docs/guides/local-development/cli/config
+# 
+# This configuration is optimized for the MySchoolWeb application's local development environment.
+# It aligns with the schema defined in migrations and supports the application's requirements.
+
 # A string used to distinguish different Supabase projects on the same host. Defaults to the
 # working directory name when running `supabase init`.
 project_id = "MySchoolsApp"
@@ -7,6 +12,7 @@ project_id = "MySchoolsApp"
 [api]
 enabled = true
 # Port to use for the API URL.
+# MySchoolWeb Next.js app connects to this endpoint for REST and GraphQL operations
 port = 54321
 # Schemas to expose in your API. Tables, views and stored procedures in this schema will get API
 # endpoints. `public` and `graphql_public` schemas are included by default.
@@ -15,6 +21,7 @@ schemas = ["public", "graphql_public"]
 extra_search_path = ["public", "extensions"]
 # The maximum number of rows returns from a view, table, or stored procedure. Limits payload size
 # for accidental or malicious requests.
+# Set to 1000 which is appropriate for notice listings and user management
 max_rows = 1000
 
 [api.tls]
@@ -23,11 +30,13 @@ enabled = false
 
 [db]
 # Port to use for the local database URL.
+# Direct PostgreSQL connection for migrations, debugging, and database administration
 port = 54322
 # Port used by db diff command to initialize the shadow database.
 shadow_port = 54320
 # The database major version to use. This has to be the same as your remote database's. Run `SHOW
 # server_version;` on the remote database to check.
+# PostgreSQL 17 provides latest performance and security features
 major_version = 17
 
 [db.pooler]
@@ -54,9 +63,11 @@ schema_paths = []
 
 [db.seed]
 # If enabled, seeds the database after migrations during a db reset.
+# Enabled for local development - provides test schools, users, groups, and notices
 enabled = true
 # Specifies an ordered list of seed files to load during db reset.
 # Supports glob patterns relative to supabase directory: "./seeds/*.sql"
+# Currently: ./seed.sql (to be populated with test data in future phases)
 sql_paths = ["./seed.sql"]
 
 [db.network_restrictions]
@@ -79,10 +90,12 @@ enabled = true
 [studio]
 enabled = true
 # Port to use for Supabase Studio.
+# Web-based database management UI for viewing tables, running queries, managing storage
 port = 54323
 # External URL of the API server that frontend connects to.
 api_url = "http://127.0.0.1"
 # OpenAI API Key to use for Supabase AI in the Supabase Studio.
+# Optional - provides AI-powered SQL query suggestions in Studio
 openai_api_key = "env(OPENAI_API_KEY)"
 
 # Email testing server. Emails sent with the local dev setup are not actually sent - rather, they
@@ -100,18 +113,28 @@ port = 54324
 [storage]
 enabled = true
 # The maximum file size allowed (e.g. "5MB", "500KB").
+# Configured for notice attachments (PDFs, documents, images)
 file_size_limit = "50MiB"
 
 # Image transformation API is available to Supabase Pro plan.
 # [storage.image_transformation]
 # enabled = true
 
-# Uncomment to configure local storage buckets
-# [storage.buckets.images]
-# public = false
-# file_size_limit = "50MiB"
-# allowed_mime_types = ["image/png", "image/jpeg"]
-# objects_path = "./images"
+# Local storage buckets for MySchoolWeb
+# Note: These are managed via migrations (20251015141845_create_storage_buckets.sql)
+# Configuration here is for reference only - buckets are created programmatically
+# 
+# Bucket: attachments (private)
+# - Purpose: Notice attachments (PDFs, images, documents)
+# - Access: School-scoped RLS (users can only access their school's attachments)
+# - File Size Limit: 50 MiB
+# - Allowed MIME Types: PDF, Word, Excel, Images (JPEG, PNG, GIF, WebP), ZIP
+# 
+# Bucket: school-logos (public)
+# - Purpose: School logo images
+# - Access: Public read, admin write
+# - File Size Limit: 5 MiB
+# - Allowed MIME Types: JPEG, PNG, SVG, WebP
 
 [auth]
 enabled = true
@@ -121,6 +144,7 @@ site_url = "http://127.0.0.1:3000"
 # A list of *exact* URLs that auth providers are permitted to redirect to post authentication.
 additional_redirect_urls = ["https://127.0.0.1:3000"]
 # How long tokens are valid for, in seconds. Defaults to 3600 (1 hour), maximum 604,800 (1 week).
+# Configured for school admin sessions - 1 hour is appropriate for security
 jwt_expiry = 3600
 # Path to JWT signing key. DO NOT commit your signing keys file to git.
 # signing_keys_path = "./signing_keys.json"
@@ -130,16 +154,19 @@ enable_refresh_token_rotation = true
 # Requires enable_refresh_token_rotation = true.
 refresh_token_reuse_interval = 10
 # Allow/disallow new user signups to your project.
+# Note: In production, this will be controlled to prevent unauthorized school registrations
 enable_signup = true
 # Allow/disallow anonymous sign-ins to your project.
 enable_anonymous_sign_ins = false
 # Allow/disallow testing manual linking of accounts
 enable_manual_linking = false
 # Passwords shorter than this value will be rejected as weak. Minimum 6, recommended 8 or more.
-minimum_password_length = 6
+# Set to 8 for stronger security as recommended for school admin accounts
+minimum_password_length = 8
 # Passwords that do not meet the following requirements will be rejected as weak. Supported values
 # are: `letters_digits`, `lower_upper_letters_digits`, `lower_upper_letters_digits_symbols`
-password_requirements = ""
+# Enforcing strong passwords with uppercase, lowercase, digits, and symbols
+password_requirements = "lower_upper_letters_digits_symbols"
 
 [auth.rate_limit]
 # Number of emails that can be sent per hour. Requires auth.email.smtp to be enabled.
@@ -170,8 +197,10 @@ enable_signup = true
 # addresses. If disabled, only the new email is required to confirm.
 double_confirm_changes = true
 # If enabled, users need to confirm their email address before signing in.
+# Disabled for local development to simplify testing - enable in production
 enable_confirmations = false
 # If enabled, users will need to reauthenticate or have logged in recently to change their password.
+# Disabled for local dev - enable in production for better security
 secure_password_change = false
 # Controls the minimum amount of time that must pass before sending another signup confirmation or password reset email.
 max_frequency = "1s"
