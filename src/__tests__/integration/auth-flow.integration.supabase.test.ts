@@ -18,93 +18,99 @@ const mockUsers = new Map();
 const mockUserDocs = new Map();
 let userIdCounter = 1;
 
-const performSignIn = async ({ email, password }: { email: string; password: string }) => {
-  const user = Array.from(mockUsers.values()).find(
-    (u: any) => u.email === email
-  );
+async function performSignIn({ email, password }: { email: string; password: string }) {
+  const user = Array.from(mockUsers.values()).find((u: any) => u.email === email);
+
   if (!user || user.password !== password) {
     return {
       data: { user: null, session: null },
       error: { message: 'Invalid credentials' },
     };
   }
+
   return {
     data: {
       user: { id: user.id, email: user.email },
-      session: { access_token: 'mock-token', user: { id: user.id, email: user.email } }
+      session: { access_token: 'mock-token', user: { id: user.id, email: user.email } },
     },
     error: null,
   };
-};
+}
 
 // Mock the supabase server module
-jest.mock('@/lib/supabase/server', () => ({
-  supabaseServer: {
-    auth: {
-      signInWithPassword: jest.fn(performSignIn),
-      admin: {
-        createUser: jest.fn(async (userData: any) => {
-          const uid = `user-${userIdCounter++}`;
-          const user = {
-            id: uid,
-            email: userData.email,
-            password: userData.password, // Store password for authentication
-            user_metadata: {
-              display_name: userData.user_metadata?.display_name,
-            }
-          };
-          mockUsers.set(uid, user);
-          return { data: { user }, error: null };
-        }),
-        updateUserById: jest.fn(async (userId: string, attributes: any) => {
-          const user = mockUsers.get(userId);
-          if (user) {
-            Object.assign(user, attributes);
+jest.mock('@/lib/supabase/server', () => {
+  const signInWithPassword = jest.fn(performSignIn);
+
+  return {
+    supabaseServer: {
+      auth: {
+        signInWithPassword,
+        admin: {
+          createUser: jest.fn(async (userData: any) => {
+            const uid = `user-${userIdCounter++}`;
+            const user = {
+              id: uid,
+              email: userData.email,
+              password: userData.password, // Store password for authentication
+              user_metadata: {
+                display_name: userData.user_metadata?.display_name,
+              },
+            };
+            mockUsers.set(uid, user);
             return { data: { user }, error: null };
-          }
-          return { data: { user: null }, error: { message: 'User not found' } };
-        }),
+          }),
+          updateUserById: jest.fn(async (userId: string, attributes: any) => {
+            const user = mockUsers.get(userId);
+            if (user) {
+              Object.assign(user, attributes);
+              return { data: { user }, error: null };
+            }
+            return { data: { user: null }, error: { message: 'User not found' } };
+          }),
+        },
       },
-    },
-    from: jest.fn((table: string) => ({
-      select: jest.fn(() => ({
-        eq: jest.fn((field: string, value: any) => ({
-          single: jest.fn(async () => {
-            if (table === 'users' && field === 'id') {
-              const data = mockUserDocs.get(value);
-              return {
-                data: data || null,
-                error: data ? null : { message: 'User not found' },
-              };
-            }
-            return { data: null, error: { message: 'Not found' } };
-          }),
-        })),
-      })),
-      insert: jest.fn((data: any) => ({
+      from: jest.fn((table: string) => ({
         select: jest.fn(() => ({
-          single: jest.fn(async () => {
-            if (table === 'users') {
-              const doc = { id: data.id, ...data };
-              mockUserDocs.set(data.id, doc);
-              return { data: doc, error: null };
-            }
-            return { data: null, error: { message: 'Insert failed' } };
-          }),
+          eq: jest.fn((field: string, value: any) => ({
+            single: jest.fn(async () => {
+              if (table === 'users' && field === 'id') {
+                const data = mockUserDocs.get(value);
+                return {
+                  data: data || null,
+                  error: data ? null : { message: 'User not found' },
+                };
+              }
+              return { data: null, error: { message: 'Not found' } };
+            }),
+          })),
+        })),
+        insert: jest.fn((data: any) => ({
+          select: jest.fn(() => ({
+            single: jest.fn(async () => {
+              if (table === 'users') {
+                const doc = { id: data.id, ...data };
+                mockUserDocs.set(data.id, doc);
+                return { data: doc, error: null };
+              }
+              return { data: null, error: { message: 'Insert failed' } };
+            }),
+          })),
         })),
       })),
-    })),
-  },
-}));
+    },
+  };
+});
 
 jest.mock('@supabase/supabase-js', () => {
-  const createClient = jest.fn(() => ({
-    auth: {
-      signInWithPassword: jest.fn(performSignIn),
-    },
-  }));
+  const signInWithPassword = jest.fn(performSignIn);
 
-  return { createClient };
+  return {
+    createClient: () => ({
+      auth: {
+        signInWithPassword,
+      },
+    }),
+  };
 });
 
 // Import after mocking
