@@ -6,16 +6,16 @@
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
+import { createClient } from '@supabase/supabase-js';
 import { authenticateUser, createUserAccount, setUserRole } from '../auth.service';
 import { supabaseServer } from '../../supabase/server';
 
-// Mock Supabase server client
 jest.mock('../../supabase/server', () => ({
   supabaseServer: {
     auth: {
-      signInWithPassword: jest.fn(),
       admin: {
         createUser: jest.fn(),
+        deleteUser: jest.fn(),
         updateUserById: jest.fn(),
       },
     },
@@ -23,9 +23,24 @@ jest.mock('../../supabase/server', () => ({
   },
 }));
 
+jest.mock('@supabase/supabase-js', () => ({
+  createClient: jest.fn(),
+}));
+
+const mockedCreateClient = createClient as jest.MockedFunction<typeof createClient>;
+const supabaseServerMock = supabaseServer as any;
+
 describe('Auth Service (Supabase)', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockedCreateClient.mockReset();
+    supabaseServerMock.from.mockReset();
+    supabaseServerMock.auth.admin.createUser.mockReset();
+    supabaseServerMock.auth.admin.deleteUser.mockReset();
+    supabaseServerMock.auth.admin.updateUserById.mockReset();
+
+    process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://test.supabase.co';
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'anon-test-key';
   });
 
   describe('authenticateUser', () => {
@@ -44,13 +59,15 @@ describe('Auth Service (Supabase)', () => {
         group_ids: ['group-1', 'group-2'],
       };
 
-      // Mock successful sign in
-      supabaseServer.auth.signInWithPassword.mockResolvedValue({
+      const mockSignInWithPassword = jest.fn().mockResolvedValue({
         data: { user: mockUser, session: {} },
         error: null,
       });
 
-      // Mock database query for user data
+      mockedCreateClient.mockReturnValueOnce({
+        auth: { signInWithPassword: mockSignInWithPassword },
+      } as any);
+
       const mockSelect = jest.fn().mockReturnThis();
       const mockEq = jest.fn().mockReturnThis();
       const mockSingle = jest.fn().mockResolvedValue({
@@ -58,7 +75,7 @@ describe('Auth Service (Supabase)', () => {
         error: null,
       });
 
-      supabaseServer.from.mockReturnValue({
+      supabaseServerMock.from.mockReturnValue({
         select: mockSelect,
       });
 
@@ -81,23 +98,42 @@ describe('Auth Service (Supabase)', () => {
         groupIds: ['group-1', 'group-2'],
       });
 
-      expect(supabaseServer.auth.signInWithPassword).toHaveBeenCalledWith({
+      expect(mockSignInWithPassword).toHaveBeenCalledWith({
         email: 'test@example.com',
         password: 'password123',
       });
 
-      expect(supabaseServer.from).toHaveBeenCalledWith('users');
+      expect(mockedCreateClient).toHaveBeenCalledWith(
+        'https://test.supabase.co',
+        'anon-test-key',
+        expect.objectContaining({
+          auth: expect.objectContaining({
+            persistSession: false,
+            autoRefreshToken: false,
+          }),
+        }),
+      );
+
+      expect(supabaseServerMock.from).toHaveBeenCalledWith('users');
     });
 
     it('should return null if authentication fails', async () => {
-      supabaseServer.auth.signInWithPassword.mockResolvedValue({
+      const mockSignInWithPassword = jest.fn().mockResolvedValue({
         data: { user: null, session: null },
         error: { message: 'Invalid credentials' },
       });
 
+      mockedCreateClient.mockReturnValueOnce({
+        auth: { signInWithPassword: mockSignInWithPassword },
+      } as any);
+
       const result = await authenticateUser('test@example.com', 'wrong-password');
 
       expect(result).toBeNull();
+      expect(mockSignInWithPassword).toHaveBeenCalledWith({
+        email: 'test@example.com',
+        password: 'wrong-password',
+      });
     });
 
     it('should return null if user document not found', async () => {
@@ -106,10 +142,14 @@ describe('Auth Service (Supabase)', () => {
         email: 'test@example.com',
       };
 
-      supabaseServer.auth.signInWithPassword.mockResolvedValue({
+      const mockSignInWithPassword = jest.fn().mockResolvedValue({
         data: { user: mockUser, session: {} },
         error: null,
       });
+
+      mockedCreateClient.mockReturnValueOnce({
+        auth: { signInWithPassword: mockSignInWithPassword },
+      } as any);
 
       const mockSelect = jest.fn().mockReturnThis();
       const mockEq = jest.fn().mockReturnThis();
@@ -118,7 +158,7 @@ describe('Auth Service (Supabase)', () => {
         error: { message: 'User not found' },
       });
 
-      supabaseServer.from.mockReturnValue({
+      supabaseServerMock.from.mockReturnValue({
         select: mockSelect,
       });
 
@@ -133,6 +173,10 @@ describe('Auth Service (Supabase)', () => {
       const result = await authenticateUser('test@example.com', 'password123');
 
       expect(result).toBeNull();
+      expect(mockSignInWithPassword).toHaveBeenCalledWith({
+        email: 'test@example.com',
+        password: 'password123',
+      });
     });
   });
 
@@ -144,7 +188,7 @@ describe('Auth Service (Supabase)', () => {
       };
 
       // Mock user creation in Supabase Auth
-      supabaseServer.auth.admin.createUser.mockResolvedValue({
+      supabaseServerMock.auth.admin.createUser.mockResolvedValue({
         data: { user: mockAuthUser },
         error: null,
       });
@@ -166,7 +210,7 @@ describe('Auth Service (Supabase)', () => {
         error: null,
       });
 
-      supabaseServer.from.mockReturnValue({
+      supabaseServerMock.from.mockReturnValue({
         insert: mockInsert,
       });
 
@@ -193,7 +237,7 @@ describe('Auth Service (Supabase)', () => {
       expect(result.schoolId).toBe('school-789');
       expect(result.role).toBe('user');
 
-      expect(supabaseServer.auth.admin.createUser).toHaveBeenCalledWith({
+      expect(supabaseServerMock.auth.admin.createUser).toHaveBeenCalledWith({
         email: 'newuser@example.com',
         email_confirm: true,
         password: 'SecurePass123!',
@@ -202,7 +246,7 @@ describe('Auth Service (Supabase)', () => {
         },
       });
 
-      expect(supabaseServer.from).toHaveBeenCalledWith('users');
+      expect(supabaseServerMock.from).toHaveBeenCalledWith('users');
     });
 
     it('should set user metadata for role', async () => {
@@ -211,7 +255,7 @@ describe('Auth Service (Supabase)', () => {
         email: 'admin@example.com',
       };
 
-      supabaseServer.auth.admin.createUser.mockResolvedValue({
+      supabaseServerMock.auth.admin.createUser.mockResolvedValue({
         data: { user: mockAuthUser },
         error: null,
       });
@@ -232,7 +276,7 @@ describe('Auth Service (Supabase)', () => {
         error: null,
       });
 
-      supabaseServer.from.mockReturnValue({
+      supabaseServerMock.from.mockReturnValue({
         insert: mockInsert,
       });
 
@@ -252,7 +296,7 @@ describe('Auth Service (Supabase)', () => {
         displayName: 'Admin User',
       });
 
-      expect(supabaseServer.auth.admin.createUser).toHaveBeenCalledWith(
+      expect(supabaseServerMock.auth.admin.createUser).toHaveBeenCalledWith(
         expect.objectContaining({
           email: 'admin@example.com',
           password: 'AdminPass123!',
@@ -261,7 +305,7 @@ describe('Auth Service (Supabase)', () => {
     });
 
     it('should throw error if user creation fails', async () => {
-      supabaseServer.auth.admin.createUser.mockResolvedValue({
+      supabaseServerMock.auth.admin.createUser.mockResolvedValue({
         data: { user: null },
         error: { message: 'Email already exists' },
       });
@@ -285,7 +329,7 @@ describe('Auth Service (Supabase)', () => {
         error: null,
       });
 
-      supabaseServer.from.mockReturnValue({
+      supabaseServerMock.from.mockReturnValue({
         update: mockUpdate,
       });
 
@@ -295,7 +339,7 @@ describe('Auth Service (Supabase)', () => {
 
       await setUserRole('user-123', 'admin');
 
-      expect(supabaseServer.from).toHaveBeenCalledWith('users');
+      expect(supabaseServerMock.from).toHaveBeenCalledWith('users');
       expect(mockUpdate).toHaveBeenCalledWith({ role: 'admin' });
       expect(mockEq).toHaveBeenCalledWith('id', 'user-123');
     });
@@ -307,7 +351,7 @@ describe('Auth Service (Supabase)', () => {
         error: { message: 'User not found' },
       });
 
-      supabaseServer.from.mockReturnValue({
+      supabaseServerMock.from.mockReturnValue({
         update: mockUpdate,
       });
 

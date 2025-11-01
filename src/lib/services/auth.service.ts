@@ -7,6 +7,7 @@
  * Replaces Firebase Auth implementation (auth.service.ts)
  */
 
+import { createClient } from '@supabase/supabase-js';
 import { UserSession, User } from '@/lib/types';
 import { supabaseServer } from '@/lib/supabase/server';
 
@@ -34,9 +35,24 @@ export async function authenticateUser(
   password: string
 ): Promise<UserSession | null> {
   try {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+    if (!supabaseUrl || !supabaseAnonKey) {
+      console.error('Supabase configuration missing for authenticateUser');
+      return null;
+    }
+
+    const authClient = createClient(supabaseUrl, supabaseAnonKey, {
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+      },
+    });
+
     // Authenticate with Supabase Auth
     const { data: authData, error: authError } =
-      await supabaseServer.auth.signInWithPassword({
+      await authClient.auth.signInWithPassword({
         email,
         password,
       });
